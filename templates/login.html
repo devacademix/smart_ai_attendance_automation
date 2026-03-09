@@ -1,28 +1,65 @@
-
 {% extends 'base.html' %}
 
-{% block title %}Page Title{% endblock %}
+{% block title %}System Login | DevAcademix{% endblock %}
 
 {% block content %}
-<!-- ################################################ -->
-    <div class="login-container">
-        <i class="fas fa-arrow-left back-icon" onclick="window.history.back();" aria-hidden="true"></i> <!-- Back icon -->
-        <h2>Login</h2>
-        <p style="text-align: center; color: #333;">Please enter your username and password.</p> <!-- Instruction message -->
-        {% if messages %}
-            {% for message in messages %}
-                <div class="message">{{ message }}</div>
-            {% endfor %}
-        {% endif %}
-        <form method="post">
-            {% csrf_token %}
-            <label for="username">Username:</label>
-            <input type="text" id="username" name="username" placeholder="Enter admin username" required>
+<div style="display: flex; justify-content: center; align-items: center; min-height: 70vh;">
+    <div class="saas-card" style="width: 100%; max-width: 450px; padding: var(--space-2);">
+        
+        <div class="saas-card-header" style="flex-direction: column; align-items: center; border-bottom: none; padding-bottom: 0; padding-top: var(--space-6);">
+            <div class="saas-avatar" style="width: 64px; height: 64px; background: var(--primary-light); color: var(--primary-color); font-size: 1.5rem; margin-bottom: var(--space-4);">
+                <i class="fas fa-fingerprint"></i>
+            </div>
+            <h2 style="margin: 0 0 var(--space-2) 0; font-size: 1.5rem; color: var(--text-primary); text-align: center;">Welcome Back</h2>
+            <p style="margin: 0; color: var(--text-secondary); text-align: center; font-size: 0.875rem;">Enter your credentials to access the secure portal.</p>
+        </div>
+        
+        <div class="saas-card-body" style="padding-top: var(--space-4);">
+            {% if messages %}
+                <div style="margin-bottom: var(--space-5);">
+                    {% for message in messages %}
+                        <div class="saas-badge" style="display: block; width: 100%; text-align: center; padding: var(--space-3); font-size: 0.875rem;
+                            {% if message.tags == 'error' or 'error' in message.tags %}background: #FEF2F2; color: #991B1B; border: 1px solid #FECACA;
+                            {% else %}background: var(--primary-light); color: var(--primary-color); border: 1px solid #BFDBFE;{% endif %}">
+                            <i class="fas {% if message.tags == 'error' or 'error' in message.tags %}fa-exclamation-circle{% else %}fa-info-circle{% endif %}" style="margin-right: var(--space-2);"></i>
+                            {{ message }}
+                        </div>
+                    {% endfor %}
+                </div>
+            {% endif %}
+
+            <form method="post">
+                {% csrf_token %}
+                
+                <div class="saas-form-group" style="margin-bottom: var(--space-4);">
+                    <label class="saas-label" for="username">Username</label>
+                    <div style="position: relative;">
+                        <i class="fas fa-user" style="position: absolute; left: 16px; top: 50%; transform: translateY(-50%); color: var(--text-tertiary);"></i>
+                        <input type="text" class="saas-input" id="username" name="username" placeholder="admin / roll number" required style="padding-left: 45px;">
+                    </div>
+                </div>
+                
+                <div class="saas-form-group" style="margin-bottom: var(--space-5);">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                        <label class="saas-label" for="password" style="margin-bottom: 0;">Password</label>
+                    </div>
+                    <div style="position: relative;">
+                        <i class="fas fa-lock" style="position: absolute; left: 16px; top: 50%; transform: translateY(-50%); color: var(--text-tertiary);"></i>
+                        <input type="password" class="saas-input" id="password" name="password" placeholder="••••••••" required style="padding-left: 45px;">
+                    </div>
+                </div>
+                
+                <button type="submit" class="saas-btn saas-btn-primary" style="width: 100%; justify-content: center; padding: var(--space-3); font-size: 1rem; margin-bottom: var(--space-4);">
+                    Sign In <i class="fas fa-arrow-right" style="margin-left: var(--space-2);"></i>
+                </button>
+            </form>
             
-            <label for="password">Password:</label>
-            <input type="password" id="password" name="password" placeholder="Enter admin password" required>
-            
-            <button type="submit">Login</button>
-        </form>
+            <div style="text-align: center; border-top: 1px solid var(--border-color); padding-top: var(--space-4); margin-top: var(--space-4);">
+                <a href="#" onclick="window.history.back(); return false;" style="color: var(--text-tertiary); text-decoration: none; font-size: 0.875rem; display: inline-flex; align-items: center; gap: var(--space-2); transition: color 0.2s;">
+                    <i class="fas fa-arrow-left"></i> Return to previous page
+                </a>
+            </div>
+        </div>
     </div>
-    {% endblock %}
+</div>
+{% endblock %}

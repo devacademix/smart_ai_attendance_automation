@@ -1,261 +1,235 @@
 {% extends 'base.html' %}
 
 {% block title %}Admin Dashboard{% endblock %}
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+{% block extra_css %}
+<style>
+    /* Admin specifics */
+    .dashboard-chart-container {
+        background: var(--surface-color);
+        border-radius: var(--radius-lg);
+        padding: var(--space-5);
+        border: 1px solid var(--border-color);
+        box-shadow: var(--shadow-sm);
+        margin-top: var(--space-6);
+    }
+</style>
+{% endblock %}
+
 {% block content %}
-  <!-- Main Content -->
-  <div class="main-content" id="main-content">
-    <div class="hero-section">
-        <h1>Face Recognition Attendance System</h1>
-        <p>Welcome, {{ user.username }}!</p> 
-        <div class="buttons">
-            <div class="card">
-                <a href="{% url 'student-list' %}">
-                    <i class="fas fa-users"></i>
-                    <p>Students: {{ total_students }}</p>
-                </a>
-            </div>
-            <div class="card">
-                <a href="{% url 'manage_courses' %}"> <!-- Replace with the correct URL for the course list -->
-                    <i class="fas fa-book"></i> <!-- Replaced the icon class to match a course-related icon -->
-                    <p>Courses: {{ total_course }}</p>
-                </a>
-            </div>  
-            <div class="card">
-                <a href="{% url 'student_list_with_fees' %}"> <!-- Replace with the correct URL for the course list -->
-                    <i class="fas fa-money-bill-wave" style="color: red;"></i> <!-- Replaced the icon class to match a course-related icon -->
-                    <p>Pending Fees: {{ total_pending_fees }}</p>
-                </a>
-            </div>           
-            <div class="card">
-                <a href="{% url 'student_attendance_list' %}">
-                    <i class="fas fa-calendar-check"></i>
-                    <p>Attendance: {{ total_attendance }}</p>
-                </a>
-            </div>
-            <div class="card">
-                <a href="{% url 'student_attendance_list' %}">
-                    <i class="fas fa-check" style="color: green;"></i>
-                    <p>Present: {{ total_present }}</p>
-                </a>
-            </div>
-            <div class="card">
-                <a href="{% url 'student_attendance_list' %}">
-                    <i class="fas fa-times" style="color: red;"></i>
-                    <p>Absent: {{ total_absent }}</p>
-                </a>
-            </div>
-            <div class="card">
-                <a href="{% url 'student_attendance_list' %}">
-                    <i class="fas fa-clock" style="color: red;"></i>
-                    <p>Late Check-ins: {{ total_late_checkins }}</p>
-                </a>
-            </div>
-            <div class="card">
-                <a href="{% url 'student_attendance_list' %}">
-                    <i class="fas fa-sign-in-alt"></i>
-                    <p>Check-ins: {{ total_checkins }}</p>
-                </a>
-            </div>
-            <div class="card">
-                <a href="{% url 'student_attendance_list' %}">
-                    <i class="fas fa-sign-out-alt"></i>
-                    <p>Check-outs: {{ total_checkouts }}</p>
-                </a>
-            </div>
-            <div class="card">
-                <a href="{% url 'camera_config_list' %}">
-                    <i class="fas fa-video"></i>
-                    <p>Cameras: {{ total_cameras }}</p>
-                </a>
-            </div>
-            
-        </div>
-        <!-- this is for showing chart -->
-        <canvas id="attendanceChart" width="400" height="200"></canvas> 
-        
+<div class="saas-page-header">
+    <div>
+        <h1 class="saas-page-title">Admin Dashboard</h1>
+        <p class="saas-page-subtitle">Welcome back, {{ user.username|title }}! Here's what's happening today.</p>
+    </div>
+    <div style="display: flex; gap: var(--space-3);">
+        <a href="{% url 'register_student' %}" class="saas-btn saas-btn-primary">
+            <i class="fas fa-plus"></i> New Student
+        </a>
+        <a href="{% url 'manage_courses' %}" class="saas-btn saas-btn-secondary">
+            <i class="fas fa-book"></i> View Courses
+        </a>
     </div>
 </div>
 
+<div class="saas-grid-4">
+    <!-- Total Students -->
+    <a href="{% url 'student-list' %}" style="text-decoration: none;">
+        <div class="saas-stat-card">
+            <div class="saas-stat-info">
+                <h3>Total Students</h3>
+                <p class="value">{{ total_students }}</p>
+            </div>
+            <div class="saas-stat-icon" style="background: var(--primary-light); color: var(--primary-color);">
+                <i class="fas fa-users"></i>
+            </div>
+        </div>
+    </a>
+
+    <!-- Courses -->
+    <a href="{% url 'manage_courses' %}" style="text-decoration: none;">
+        <div class="saas-stat-card">
+            <div class="saas-stat-info">
+                <h3>Active Courses</h3>
+                <p class="value">{{ total_course }}</p>
+            </div>
+            <div class="saas-stat-icon" style="background: #FEF3C7; color: #D97706;">
+                <i class="fas fa-book-open"></i>
+            </div>
+        </div>
+    </a>
+
+    <!-- Pending Fees -->
+    <a href="{% url 'student_list_with_fees' %}" style="text-decoration: none;">
+        <div class="saas-stat-card">
+            <div class="saas-stat-info">
+                <h3>Pending Fees</h3>
+                <p class="value">{{ total_pending_fees }}</p>
+            </div>
+            <div class="saas-stat-icon" style="background: var(--danger-light); color: var(--danger-color);">
+                <i class="fas fa-money-bill-wave"></i>
+            </div>
+        </div>
+    </a>
+
+    <!-- Total Attendance -->
+    <a href="{% url 'student_attendance_list' %}" style="text-decoration: none;">
+        <div class="saas-stat-card">
+            <div class="saas-stat-info">
+                <h3>Total Attendance</h3>
+                <p class="value">{{ total_attendance }}</p>
+            </div>
+            <div class="saas-stat-icon" style="background: var(--accent-light); color: var(--accent-color);">
+                <i class="fas fa-calendar-check"></i>
+            </div>
+        </div>
+    </a>
+
+    <!-- Present Today -->
+    <a href="{% url 'student_attendance_list' %}" style="text-decoration: none;">
+        <div class="saas-stat-card">
+            <div class="saas-stat-info">
+                <h3>Present</h3>
+                <p class="value">{{ total_present }}</p>
+            </div>
+            <div class="saas-stat-icon" style="background: var(--accent-light); color: var(--accent-color);">
+                <i class="fas fa-check-circle"></i>
+            </div>
+        </div>
+    </a>
+
+    <!-- Absent Today -->
+    <a href="{% url 'student_attendance_list' %}" style="text-decoration: none;">
+        <div class="saas-stat-card">
+            <div class="saas-stat-info">
+                <h3>Absent</h3>
+                <p class="value">{{ total_absent }}</p>
+            </div>
+            <div class="saas-stat-icon" style="background: var(--danger-light); color: var(--danger-color);">
+                <i class="fas fa-times-circle"></i>
+            </div>
+        </div>
+    </a>
+
+    <!-- Late Check-ins -->
+    <a href="{% url 'student_attendance_list' %}" style="text-decoration: none;">
+        <div class="saas-stat-card">
+            <div class="saas-stat-info">
+                <h3>Late Check-ins</h3>
+                <p class="value">{{ total_late_checkins }}</p>
+            </div>
+            <div class="saas-stat-icon" style="background: var(--warning-light); color: var(--warning-color);">
+                <i class="fas fa-clock"></i>
+            </div>
+        </div>
+    </a>
+
+    <!-- Total Cameras -->
+    <a href="{% url 'camera_config_list' %}" style="text-decoration: none;">
+        <div class="saas-stat-card">
+            <div class="saas-stat-info">
+                <h3>Cameras Linked</h3>
+                <p class="value">{{ total_cameras }}</p>
+            </div>
+            <div class="saas-stat-icon" style="background: #F1F5F9; color: #475569;">
+                <i class="fas fa-video"></i>
+            </div>
+        </div>
+    </a>
+</div>
+
+<!-- Chart Section -->
+<div class="dashboard-chart-container">
+    <h3 style="font-size: 1.125rem; font-weight: 600; color: var(--secondary-color); margin-top: 0; margin-bottom: var(--space-4);">System Analytics Overview</h3>
+    <canvas id="attendanceChart" height="80"></canvas> 
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
 <script>
     // Get the data from the Django template context
-    const totalStudents = {{ total_students }};
-    const totalCourse = {{ total_course }};
-    const totalPending_fees = {{ total_pending_fees }};  // This is the added variable
-    const totalAttendance = {{ total_attendance }};
-    const totalPresent = {{ total_present }};
-    const totalAbsent = {{ total_absent }};
-    const totalLateCheckins = {{ total_late_checkins }};
-    const totalCheckins = {{ total_checkins }};
-    const totalCheckouts = {{ total_checkouts }};
-    const totalCameras = {{ total_cameras }};
+    const totalStudents = {{ total_students|default:"0" }};
+    const totalCourse = {{ total_course|default:"0" }};
+    const totalPending_fees = {{ total_pending_fees|default:"0" }};  
+    const totalAttendance = {{ total_attendance|default:"0" }};
+    const totalPresent = {{ total_present|default:"0" }};
+    const totalAbsent = {{ total_absent|default:"0" }};
+    const totalLateCheckins = {{ total_late_checkins|default:"0" }};
+    const totalCheckins = {{ total_checkins|default:"0" }};
+    const totalCheckouts = {{ total_checkouts|default:"0" }};
+    const totalCameras = {{ total_cameras|default:"0" }};
 
-    // Calculate total metrics for percentage calculation
     const totalMetrics = 
-        totalStudents + 
-        totalCourse +
-        totalPending_fees +  // Added totalPending_fees here
-        totalAttendance + 
-        totalPresent + 
-        totalAbsent + 
-        totalLateCheckins + 
-        totalCheckins + 
-        totalCheckouts + 
-        totalCameras;
+        totalStudents + totalCourse + totalPending_fees + totalAttendance + 
+        totalPresent + totalAbsent + totalLateCheckins + totalCheckins + 
+        totalCheckouts + totalCameras;
 
-    // Calculate percentages
+    const computePerc = (val) => totalMetrics > 0 ? (val / totalMetrics) * 100 : 0;
+
     const metricsPercentages = [
-        (totalStudents / totalMetrics) * 100,
-        (totalCourse / totalMetrics) * 100,
-        (totalPending_fees / totalMetrics) * 100, // Added percentage calculation for totalPending_fees
-        (totalAttendance / totalMetrics) * 100,
-        (totalPresent / totalMetrics) * 100,
-        (totalAbsent / totalMetrics) * 100,
-        (totalLateCheckins / totalMetrics) * 100,
-        (totalCheckins / totalMetrics) * 100,
-        (totalCheckouts / totalMetrics) * 100,
-        (totalCameras / totalMetrics) * 100
+        computePerc(totalStudents), computePerc(totalCourse), computePerc(totalPending_fees),
+        computePerc(totalAttendance), computePerc(totalPresent), computePerc(totalAbsent),
+        computePerc(totalLateCheckins), computePerc(totalCheckins), computePerc(totalCheckouts),
+        computePerc(totalCameras)
     ];
 
-    // Configure the chart
     const ctx = document.getElementById('attendanceChart').getContext('2d');
-    const gradientColors = {
-        students: ctx.createLinearGradient(0, 0, 0, 400),
-        courses: ctx.createLinearGradient(0, 0, 0, 400),
-        pendingFees: ctx.createLinearGradient(0, 0, 0, 400),  // Added gradient for pending fees
-        attendance: ctx.createLinearGradient(0, 0, 0, 400),
-        present: ctx.createLinearGradient(0, 0, 0, 400),
-        absent: ctx.createLinearGradient(0, 0, 0, 400),
-        late: ctx.createLinearGradient(0, 0, 0, 400),
-        checkin: ctx.createLinearGradient(0, 0, 0, 400),
-        checkout: ctx.createLinearGradient(0, 0, 0, 400),
-        cameras: ctx.createLinearGradient(0, 0, 0, 400)
-    };
 
-    // Define gradients for each bar
-    gradientColors.students.addColorStop(0, 'rgba(255, 99, 132, 0.5)');
-    gradientColors.students.addColorStop(1, 'rgba(255, 99, 132, 1)');
-    gradientColors.courses.addColorStop(0, 'rgba(54, 162, 235, 0.5)');
-    gradientColors.courses.addColorStop(1, 'rgba(54, 162, 235, 1)');
-    gradientColors.pendingFees.addColorStop(0, 'rgba(255, 99, 71, 0.5)'); // Distinct color for pending fees
-    gradientColors.pendingFees.addColorStop(1, 'rgba(255, 99, 71, 1)');
-    gradientColors.attendance.addColorStop(0, 'rgba(255, 206, 86, 0.5)');
-    gradientColors.attendance.addColorStop(1, 'rgba(255, 206, 86, 1)');
-    gradientColors.present.addColorStop(0, 'rgba(75, 192, 192, 0.5)');
-    gradientColors.present.addColorStop(1, 'rgba(75, 192, 192, 1)');
-    gradientColors.absent.addColorStop(0, 'rgba(153, 102, 255, 0.5)');
-    gradientColors.absent.addColorStop(1, 'rgba(153, 102, 255, 1)');
-    gradientColors.late.addColorStop(0, 'rgba(255, 159, 64, 0.5)');
-    gradientColors.late.addColorStop(1, 'rgba(255, 159, 64, 1)');
-    gradientColors.checkin.addColorStop(0, 'rgba(201, 203, 207, 0.5)');
-    gradientColors.checkin.addColorStop(1, 'rgba(201, 203, 207, 1)');
-    gradientColors.checkout.addColorStop(0, 'rgba(103, 58, 183, 0.5)');
-    gradientColors.checkout.addColorStop(1, 'rgba(103, 58, 183, 1)');
-    gradientColors.cameras.addColorStop(0, 'rgba(0, 128, 128, 0.5)');
-    gradientColors.cameras.addColorStop(1, 'rgba(0, 128, 128, 1)');
+    const saasColors = [
+        '#2563EB', '#D97706', '#EF4444', '#10B981', '#22C55E', 
+        '#F43F5E', '#F59E0B', '#6366F1', '#8B5CF6', '#475569'
+    ];
+
+    const saasBgColors = saasColors.map(color => color + '80'); // 50% opacity
 
     const attendanceChart = new Chart(ctx, {
         type: 'bar',
         data: {
             labels: [
-                'Students',
-                'Courses', 
-                'Pending Fees', // Added label for pending fees
-                'Attendance Records', 
-                'Present', 
-                'Absent', 
-                'Late Check-ins', 
-                'Check-ins', 
-                'Check-outs', 
-                'Cameras'
+                'Students', 'Courses', 'Pending Fees', 'Attendance', 
+                'Present', 'Absent', 'Late Check-ins', 'Check-ins', 
+                'Check-outs', 'Cameras'
             ],
             datasets: [{
-                label: 'Data Metrics (%)',
+                label: 'Data Distribution (%)',
                 data: metricsPercentages,
-                backgroundColor: [
-                    gradientColors.students,
-                    gradientColors.courses,
-                    gradientColors.pendingFees, // Added gradient for pending fees
-                    gradientColors.attendance,
-                    gradientColors.present,
-                    gradientColors.absent,
-                    gradientColors.late,
-                    gradientColors.checkin,
-                    gradientColors.checkout,
-                    gradientColors.cameras
-                ],
-                borderColor: 'rgba(0,0,0,0.1)',
+                backgroundColor: saasBgColors,
+                borderColor: saasColors,
                 borderWidth: 1,
-                borderRadius: 10, // Rounded corners for bars
-                hoverBackgroundColor: 'rgba(0,0,0,0.1)' // Subtle hover effect
+                borderRadius: 4, 
+                hoverBackgroundColor: saasColors 
             }]
         },
         options: {
             responsive: true,
             plugins: {
-                legend: {
-                    position: 'top',
-                    labels: {
-                        font: {
-                            size: 14,
-                            family: "'Poppins', sans-serif"
-                        }
-                    }
-                },
-                title: {
-                    display: true,
-                    text: 'Data Metrics Overview (%)',
-                    font: {
-                        size: 18,
-                        family: "'Poppins', sans-serif"
-                    }
-                },
+                legend: { display: false },
                 tooltip: {
-                    backgroundColor: 'rgba(0,0,0,0.8)',
-                    titleFont: {
-                        size: 14
-                    },
-                    bodyFont: {
-                        size: 12
-                    },
-                    borderWidth: 1,
-                    borderColor: '#ddd'
+                    backgroundColor: '#0F172A',
+                    titleFont: { size: 14, family: "'Inter', sans-serif" },
+                    bodyFont: { size: 13, family: "'Inter', sans-serif" },
+                    padding: 12,
+                    cornerRadius: 8
                 }
             },
-            animation: {
-                duration: 2000, // Smooth animation
-                easing: 'easeInOutCubic'
-            },
+            animation: { duration: 1000, easing: 'easeOutQuart' },
             scales: {
                 x: {
-                    ticks: {
-                        font: {
-                            size: 12,
-                            family: "'Poppins', sans-serif"
-                        }
-                    }
+                    grid: { display: false },
+                    ticks: { font: { family: "'Inter', sans-serif" }, color: '#64748B' }
                 },
                 y: {
                     beginAtZero: true,
+                    grid: { color: '#E2E8F0', borderDash: [4, 4] },
                     ticks: {
-                        callback: function(value) {
-                            return value + '%';
-                        },
-                        font: {
-                            size: 12,
-                            family: "'Poppins', sans-serif"
-                        }
-                    },
-                    grid: {
-                        color: 'rgba(200,200,200,0.2)'
+                        callback: function(value) { return value + '%'; },
+                        font: { family: "'Inter', sans-serif" },
+                        color: '#64748B'
                     }
                 }
             }
         }
     });
 </script>
-
-
-
-
 {% endblock %}

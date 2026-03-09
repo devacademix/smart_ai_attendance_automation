@@ -1,268 +1,263 @@
-{% load static %}
 <!DOCTYPE html>
+{% load static %}
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Student Dashboard</title>
-    <link rel="shortcut icon" href="https://apycoder.com/wp-content/uploads/2024/02/WhatsApp-Image-2024-02-10-at-2.31.50-PM-1.jpeg">
-    <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Sharp" rel="stylesheet">
-    <link rel="stylesheet" href="{% static 'style.css' %}">
+    <!-- Include Font Awesome for icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="{% static 'css/saas_theme.css' %}">
 </head>
-
 <body>
-    <!-- Header -->
-    <header>
-        <div class="logo" title="University Management System">
-            <img src="https://apycoder.com/wp-content/uploads/2024/02/WhatsApp-Image-2024-02-10-at-2.31.50-PM-1.jpeg" alt="Logo">
-            <h2>A<span class="danger">P</span>YC<span class="danger">O</span>DE<span class="danger">R</span></h2>
-        </div>
-        <div class="navbar">
-            <a href="{% url 'student_dashboard' %}" class="active">
-                <span class="material-icons-sharp">home</span>
-                <h3>Home</h3>
-            </a>
-            <a href="{%url 'student_attendance'%}" onclick="timeTableAll()">
-                <span class="material-icons-sharp">today</span>
-                <h3>Attendance</h3>
-            </a> 
-            <a href="{% url 'course_list' %}">
-                <span class="material-icons-sharp">grid_view</span>
-                <h3>Courses</h3>
-            </a>
-            <a href="{% url 'student_fee_detail' %}">
-                <span class="material-icons-sharp">money</span>
-                <h3>Fee Detail</h3>
-            </a>
-            <a href="{% url 'Student_leave_list' %}">
-                <span class="material-icons-sharp">today</span>
-                <h3>Apply Leave</h3>
-            </a>
-            <a href="{% url 'logout' %}">
-                <span class="material-icons-sharp">logout</span>
-                <h3>Logout</h3>
-            </a>
-        </div>
-        <div id="profile-btn">
-            <span class="material-icons-sharp">person</span>
-        </div>
-        <div class="theme-toggler">
-            <span class="material-icons-sharp active">light_mode</span>
-            <span class="material-icons-sharp">dark_mode</span>
-        </div>
-    </header>
 
-    <!-- Container -->
-    <div class="container">
-        <!-- Sidebar -->
-        <aside>
-            <div class="profile">
-                <div class="top">
-                    <div class="profile-photo">
+    <!-- Sidebar -->
+    <aside class="saas-sidebar" id="sidebar">
+        <div class="saas-sidebar-header">
+            <i class="fas fa-layer-group" style="font-size: 1.5rem; color: var(--primary-color);"></i>
+            <h2>DevAcademix.</h2>
+        </div>
+        
+        <nav class="saas-sidebar-nav">
+            <a href="{% url 'student_dashboard' %}" class="saas-nav-item active">
+                <i class="fas fa-home"></i> Home
+            </a>
+            <a href="{% url 'student_attendance' %}" class="saas-nav-item">
+                <i class="fas fa-user-check"></i> Attendance
+            </a>
+            <a href="{% url 'course_list' %}" class="saas-nav-item">
+                <i class="fas fa-book"></i> Courses
+            </a>
+            <a href="{% url 'student_fee_detail' %}" class="saas-nav-item">
+                <i class="fas fa-money-bill-wave"></i> Fee Detail
+            </a>
+            <a href="{% url 'Student_leave_list' %}" class="saas-nav-item">
+                <i class="fas fa-clipboard-list"></i> Apply Leave
+            </a>
+        </nav>
+    </aside>
+
+    <!-- Main Content Wrapper -->
+    <div class="saas-main" id="main-content">
+        
+        <!-- Top Header Navigation -->
+        <header class="saas-header">
+            <div style="display: flex; align-items: center;">
+                <button class="saas-menu-toggle" id="toggle-btn" style="margin-right: 15px;">
+                    <i class="fas fa-bars"></i>
+                </button>
+            </div>
+            
+            <div class="saas-header-actions">
+                <div class="saas-user-profile">
+                    <span style="display: flex; flex-direction: column; align-items: flex-end; line-height: 1.2;">
+                        <span style="color: var(--text-primary); font-weight: 600;">{{ student.name }}</span>
+                        <span style="font-size: 0.75rem;">Student ID: {{ student.roll_no }}</span>
+                    </span>
+                    <div class="saas-avatar" style="overflow: hidden;">
                         {% if student.image %}
-                            <img src="{{ student.image.url }}" alt="Profile Photo">
+                            <img src="{{ student.image.url }}" alt="Profile Photo" style="width: 100%; height: 100%; object-fit: cover;">
                         {% else %}
-                            <img src="{% static 'images/defual.png' %}" alt="Default Profile Photo">
+                            <i class="fas fa-user"></i>
                         {% endif %}
                     </div>
-                    <div class="info">
-                        <p>Hey, <b>{{ student.name }}</b></p>
-                        <small class="text-muted">Roll No: {{ student.roll_no }}</small>
+                </div>
+                <a href="{% url 'logout' %}" class="saas-btn saas-btn-secondary" style="margin-left: var(--space-2); padding: var(--space-2) var(--space-3); border-radius: 50%;">
+                    <i class="fas fa-sign-out-alt"></i>
+                </a>
+            </div>
+        </header>
+
+        <!-- Dynamic Content injected here -->
+        <main class="saas-content">
+            <div class="saas-page-header">
+                <div>
+                    <h1 class="saas-page-title">Student Dashboard</h1>
+                    <p class="saas-page-subtitle">Welcome back, {{ student.name }}! Here is your academic overview.</p>
+                </div>
+            </div>
+
+            <!-- Dashboard Stats -->
+            <div class="saas-grid-4">
+                <div class="saas-stat-card border-left" style="border-left: 4px solid var(--primary-color);">
+                    <div class="saas-stat-info">
+                        <h3>Attendance Overall</h3>
+                        <p class="value" style="color: {% if attendance_percentage >= 75 %}var(--accent-color){% else %}var(--danger-color){% endif %};">{{ attendance_percentage }}%</p>
+                    </div>
+                    <div class="saas-stat-icon" style="background: var(--primary-light); color: var(--primary-color);">
+                        {% if attendance_percentage >= 75 %}
+                        <i class="fas fa-check-circle"></i>
+                        {% else %}
+                        <i class="fas fa-exclamation-triangle"></i>
+                        {% endif %}
                     </div>
                 </div>
-                <div class="about">
-                    <div class="profile-details">
-                        <!-- Displaying the student's general details -->
-                        <div class="row">
-                            <div class="col-md-6">
-                                <h5>DOB</h5>
-                                <p>{{ student.date_of_birth }}</p>
-                            </div>
-                        </div>
-                
-                        <div class="row">
-                            <div class="col-md-6">
-                                <h5>Contact</h5>
-                                <p>{{ student.phone_number }}</p>
-                            </div>
-                            <div class="col-md-6">
-                                <h5>Email</h5>
-                                <p>{{ student.email }}</p>
-                            </div>
-                        </div>
-                
-                        <div class="row">
-                            <div class="col-12">
-                                <h5>Address</h5>
-                                <p>{{ student.address }}</p>
-                            </div>
-                        </div>
+
+                <div class="saas-stat-card border-left" style="border-left: 4px solid var(--accent-color);">
+                    <div class="saas-stat-info">
+                        <h3>Total Present</h3>
+                        <p class="value">{{ total_present }}</p>
                     </div>
-                
-                    <div class="course-department-session-semester">
-                        <div class="row">
-                            <!-- Displaying the courses -->
-                            <div class="col-md-3">
-                                <h5>Courses</h5>
-                                <ul>
-                                    {% for course in courses %}
-                                        <li>{{ course.name }}</li>
-                                    {% endfor %}
-                                </ul>
+                    <div class="saas-stat-icon" style="background: var(--accent-light); color: var(--accent-color);">
+                        <i class="fas fa-check"></i>
+                    </div>
+                </div>
+
+                <div class="saas-stat-card border-left" style="border-left: 4px solid var(--danger-color);">
+                    <div class="saas-stat-info">
+                        <h3>Total Absent</h3>
+                        <p class="value">{{ total_absent }}</p>
+                    </div>
+                    <div class="saas-stat-icon" style="background: var(--danger-light); color: var(--danger-color);">
+                        <i class="fas fa-times"></i>
+                    </div>
+                </div>
+
+                <div class="saas-stat-card border-left" style="border-left: 4px solid #F59E0B;">
+                    <div class="saas-stat-info">
+                        <h3>Total Late</h3>
+                        <p class="value">{{ total_late_count }}</p>
+                    </div>
+                    <div class="saas-stat-icon" style="background: #FEF3C7; color: #D97706;">
+                        <i class="fas fa-clock"></i>
+                    </div>
+                </div>
+            </div>
+
+            <div style="display: grid; grid-template-columns: 2fr 1fr; gap: var(--space-6);">
+                <!-- Left Column -->
+                <div>
+                    <!-- Profile Card -->
+                    <div class="saas-card" style="margin-bottom: var(--space-6);">
+                        <div class="saas-card-header">
+                            <h3 class="saas-card-title">Academic Profile</h3>
+                        </div>
+                        <div class="saas-card-body" style="display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-4);">
+                            <div>
+                                <p style="margin: 0; font-size: 0.75rem; color: var(--text-tertiary); text-transform: uppercase;">Session & Semester</p>
+                                <p style="margin: 0; font-weight: 500;">{{ session.name }} - {% for s in semesters %}{{ s.name }}{% if not forloop.last %}, {% endif %}{% endfor %}</p>
                             </div>
-                
-                            <!-- Displaying the departments -->
-                            <div class="col-md-3">
-                                <h5>Departments</h5>
-                                <ul>
-                                    {% for department in departments %}
-                                        <li>{{ department.name }}</li>
-                                    {% endfor %}
-                                </ul>
+                            <div>
+                                <p style="margin: 0; font-size: 0.75rem; color: var(--text-tertiary); text-transform: uppercase;">Departments</p>
+                                <p style="margin: 0; font-weight: 500;">{% for d in departments %}{{ d.name }}{% if not forloop.last %}, {% endif %}{% empty %}None{% endfor %}</p>
                             </div>
-                
-                            <!-- Displaying the session -->
-                            <div class="col-md-3">
-                                <h5>Session</h5>
-                                <p>{{ session.name }}</p>
+                            <div>
+                                <p style="margin: 0; font-size: 0.75rem; color: var(--text-tertiary); text-transform: uppercase;">Enrolled Courses</p>
+                                <p style="margin: 0; font-weight: 500;">
+                                    {% for c in courses %}<span class="saas-badge saas-badge-primary" style="margin-right: 4px; margin-bottom: 4px;">{{ c.name }}</span>{% empty %}No active courses.{% endfor %}
+                                </p>
                             </div>
-                
-                            <!-- Displaying the semesters -->
-                            <div class="col-md-3">
-                                <h5>Semesters</h5>
-                                <p>
-                                    {% for semester in semesters %}
-                                        {{ semester.name }}{% if not forloop.last %}, {% endif %}
-                                    {% endfor %}
+                            <div>
+                                <p style="margin: 0; font-size: 0.75rem; color: var(--text-tertiary); text-transform: uppercase;">Contact Info</p>
+                                <p style="margin: 0; font-weight: 500;">
+                                    <i class="fas fa-envelope" style="color: var(--text-tertiary); width: 16px;"></i> {{ student.email }}<br>
+                                    <i class="fas fa-phone" style="color: var(--text-tertiary); width: 16px;"></i> {{ student.phone_number }}
                                 </p>
                             </div>
                         </div>
                     </div>
+
+                    <!-- Recent Attendance Table -->
+                    <div class="saas-card">
+                        <div class="saas-card-header">
+                            <h3 class="saas-card-title">Recent Attendance Logs</h3>
+                        </div>
+                        <div class="saas-table-container" style="border: none; box-shadow: none;">
+                            <table class="saas-table">
+                                <thead>
+                                    <tr>
+                                        <th>Date</th>
+                                        <th>Status</th>
+                                        <th>Check-in</th>
+                                        <th>Check-out</th>
+                                        <th>Duration</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for record in attendance_records|slice:":5" %}
+                                    <tr>
+                                        <td style="font-weight: 500;">{{ record.date }}</td>
+                                        <td>
+                                            {% if record.status == 'Present' %}
+                                                <span class="saas-badge saas-badge-success">Present</span>
+                                            {% elif record.status == 'Absent' %}
+                                                <span class="saas-badge saas-badge-danger">Absent</span>
+                                            {% elif record.status == 'Late' %}
+                                                <span class="saas-badge saas-badge-warning">Late</span>
+                                            {% else %}
+                                                <span class="saas-badge" style="background: #E2E8F0; color: #475569;">{{ record.status }}</span>
+                                            {% endif %}
+                                        </td>
+                                        <td>{% if record.check_in_time %}{{ record.check_in_time|date:"h:i A" }}{% else %}-{% endif %}</td>
+                                        <td>{% if record.check_out_time %}{{ record.check_out_time|date:"h:i A" }}{% else %}-{% endif %}</td>
+                                        <td>
+                                            {% if record.check_in_time and record.check_out_time %}
+                                                {{ record.calculate_duration }}
+                                            {% else %}
+                                                -
+                                            {% endif %}
+                                        </td>
+                                    </tr>
+                                    {% empty %}
+                                    <tr>
+                                        <td colspan="5" style="text-align: center; color: var(--text-tertiary); padding: var(--space-4);">No attendance records found.</td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
                 </div>
-                
+
+                <!-- Right Column (Announcements) -->
+                <div>
+                    <div class="saas-card" style="height: 100%; display: flex; flex-direction: column;">
+                        <div class="saas-card-header">
+                            <h3 class="saas-card-title">Announcements</h3>
+                        </div>
+                        <div class="saas-card-body" style="flex: 1;">
+                            <div style="border-left: 2px solid var(--border-color); padding-left: var(--space-4); margin-bottom: var(--space-5); position: relative;">
+                                <div style="position: absolute; left: -5px; top: 0; width: 8px; height: 8px; border-radius: 50%; background: var(--primary-color);"></div>
+                                <h4 style="margin: 0 0 var(--space-1) 0; font-size: 0.875rem; color: var(--text-primary);">Summer Training</h4>
+                                <p style="margin: 0; font-size: 0.875rem; color: var(--text-secondary);">Internship with Live Projects is opening soon. Check your email for more details.</p>
+                                <small style="color: var(--text-tertiary); font-size: 0.75rem;">Today</small>
+                            </div>
+
+                            <div style="border-left: 2px solid var(--border-color); padding-left: var(--space-4); margin-bottom: var(--space-5); position: relative;">
+                                <div style="position: absolute; left: -5px; top: 0; width: 8px; height: 8px; border-radius: 50%; background: var(--accent-color);"></div>
+                                <h4 style="margin: 0 0 var(--space-1) 0; font-size: 0.875rem; color: var(--text-primary);">Global Exchange Demo</h4>
+                                <p style="margin: 0; font-size: 0.875rem; color: var(--text-secondary);">International internship opportunity by student organizations.</p>
+                                <small style="color: var(--text-tertiary); font-size: 0.75rem;">Yesterday</small>
+                            </div>
+
+                            <div style="border-left: 2px solid var(--border-color); padding-left: var(--space-4); position: relative;">
+                                <div style="position: absolute; left: -5px; top: 0; width: 8px; height: 8px; border-radius: 50%; background: var(--danger-color);"></div>
+                                <h4 style="margin: 0 0 var(--space-1) 0; font-size: 0.875rem; color: var(--text-primary);">Mid Term Examinations</h4>
+                                <p style="margin: 0; font-size: 0.875rem; color: var(--text-secondary);">Instructions for the upcoming Mid Term examination have been dispatched to the portal.</p>
+                                <small style="color: var(--text-tertiary); font-size: 0.75rem;">Last Week</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </div>
-        </aside>
-
-        <!-- Main Content -->
-        <main>
-            <div class="subjects">
-                <div class="attendance-summary">
-                    {% if attendance_percentage < 75 %}
-                        <!-- Low Attendance -->
-                        <span class="material-icons-sharp" style="color: red;">warning</span>
-                    {% else %}
-                        <!-- High Attendance -->
-                        <span class="material-icons-sharp" style="color: green;">check_circle</span>
-                    {% endif %}
-                    <h3>Attendance</h3>
-                    <h2>{{ attendance_percentage }}%</h2>
-                </div>
-                
-                <div class="attendance-summary">
-                    <span class="material-icons-sharp" style="color: green;">done</span>
-                    <h3>Total Present</h3>
-                    <h2>{{ total_present }}</h2>
-                </div>
-                <div class="attendance-summary">
-                    <span class="material-icons-sharp" style="color: red;">block</span>
-                    <h3>Total Absent</h3>
-                    <h2>{{ total_absent }}</h2>
-                </div>
-                <div class="attendance-summary">
-                    <span class="material-icons-sharp" style="color: orange;">schedule</span>
-                    <h3>Total Late</h3>
-                    <h2>{{ total_late_count }}</h2>
-                </div>
-            </div>
-            
-
-          <!-- Attendance Records Table -->
-<div class="timetable" id="timetable">
-    <div>
-        <h2>Recent Attendance</h2>
-    </div>
-    <table>
-        <thead>
-            <tr>
-                <th>Date</th>
-                <th>Status</th>
-                <th>Check-in Time</th>
-                <th>Check-out Time</th>
-                <th>Duration</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for record in attendance_records %}
-            <tr>
-                <td>{{ record.date }}</td>
-                <td>{{ record.status }}</td>
-                <td>
-                    {% if record.check_in_time %}
-                        {{ record.check_in_time|date:"h:i:s A" }}
-                    {% else %}
-                        -
-                    {% endif %}
-                </td>
-                <td>
-                    {% if record.check_out_time %}
-                        {{ record.check_out_time|date:"h:i:s A" }}
-                    {% else %}
-                        -
-                    {% endif %}
-                </td>
-                <td>
-                    {% if record.check_in_time and record.check_out_time %}
-                        {{ record.calculate_duration }}
-                    {% else %}
-                        Not Checked Out
-                    {% endif %}
-                </td>
-            </tr>
-            {% empty %}
-            <tr>
-                <td colspan="5">No attendance records found.</td>
-            </tr>
-            {% endfor %}
-        </tbody>
-    </table>
-</div>
-
-
-        
         </main>
-
-        <!-- Right Sidebar -->
-        <div class="right">
-            <div class="announcements">
-                <h2>Announcements</h2>
-                <div class="updates">
-                    <div class="message">
-                        <p><b>Academic</b> Summer training internship with Live Projects.</p>
-                        <small class="text-muted">2 Minutes Ago</small>
-                    </div>
-                    <div class="message">
-                        <p><b>Co-curricular</b> Global internship opportunity by Student organization.</p>
-                        <small class="text-muted">10 Minutes Ago</small>
-                    </div>
-                    <div class="message">
-                        <p><b>Examination</b> Instructions for Mid Term Examination.</p>
-                        <small class="text-muted">Yesterday</small>
-                    </div>
-                </div>
-            </div>
-
-            
-        </div>
+        
     </div>
-
-    <!-- Footer -->
-    <!-- <footer>
-        <p>Developed by ApyCoder | <a href="https://apycoder.com">Visit our website</a></p>
-    </footer> -->
 
     <!-- JavaScript -->
-    
-    <script src="{% static 'app.js' %}"></script>
+    <script>
+        const toggleBtn = document.getElementById('toggle-btn');
+        const sidebar = document.getElementById('sidebar');
+
+        toggleBtn.addEventListener('click', () => {
+            sidebar.classList.toggle('open');
+        });
+
+        document.addEventListener('click', (e) => {
+            if (window.innerWidth <= 1024 && !sidebar.contains(e.target) && !toggleBtn.contains(e.target)) {
+                sidebar.classList.remove('open');
+            }
+        });
+    </script>
 </body>
 </html>

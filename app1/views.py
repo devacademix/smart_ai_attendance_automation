@@ -667,24 +667,36 @@ def user_logout(request):
 
 @staff_member_required
 def send_attendance_notifications(request):
+    from django.core.mail import get_connection, send_mail
+    from smtplib import SMTPException
+    
     # Fetch email configuration from the database
-    email_config = EmailConfig.objects.first()  # Get the first email configuration or handle multiple configurations
+    email_config = EmailConfig.objects.first()
 
     if email_config is None:
         messages.error(request, "No email configuration found!")
         return render(request, 'notification_sent.html')
 
-    # Set up the email backend dynamically based on the configuration
-    settings.EMAIL_HOST = email_config.email_host
-    settings.EMAIL_PORT = email_config.email_port
-    settings.EMAIL_USE_TLS = email_config.email_use_tls
-    settings.EMAIL_HOST_USER = email_config.email_host_user
-    settings.EMAIL_HOST_PASSWORD = email_config.email_host_password
+    # Create a dynamic connection backend to avoid global settings mutation issues
+    try:
+        connection = get_connection(
+            host=email_config.email_host,
+            port=email_config.email_port,
+            username=email_config.email_host_user,
+            password=email_config.email_host_password,
+            use_tls=email_config.email_use_tls
+        )
+    except Exception as e:
+        messages.error(request, f"Failed to initialize email connection: {e}")
+        return render(request, 'notification_sent.html')
 
     # Filter late students who haven't been notified
     late_attendance_records = Attendance.objects.filter(is_late=True, email_sent=False)
     # Filter absent students who haven't been notified
     absent_students = Attendance.objects.filter(status='Absent', email_sent=False)
+
+    success_count = 0
+    error_count = 0
 
     # Process late students
     for record in late_attendance_records:
@@ -693,25 +705,27 @@ def send_attendance_notifications(request):
 
         # Render the email content from the HTML template for late students
         html_message = render_to_string(
-            'email_templates/late_attendance_email.html',  # Path to the template
-            {'student': student, 'record': record}  # Context to be passed into the template
+            'email_templates/late_attendance_email.html',
+            {'student': student, 'record': record}
         )
 
-        recipient_email = student.email
-
-        # Send the email with HTML content
-        send_mail(
-            subject,
-            "This is an HTML email. Please enable HTML content to view it.",
-            settings.EMAIL_HOST_USER,
-            [recipient_email],
-            fail_silently=False,
-            html_message=html_message
-        )
-
-        # Mark email as sent to avoid resending
-        record.email_sent = True
-        record.save()
+        try:
+            send_mail(
+                subject,
+                "This is an HTML email. Please enable HTML content to view it.",
+                email_config.email_host_user,
+                [student.email],
+                fail_silently=False,
+                html_message=html_message,
+                connection=connection
+            )
+            # Mark email as sent to avoid resending
+            record.email_sent = True
+            record.save()
+            success_count += 1
+        except Exception as e:
+            error_count += 1
+            messages.error(request, f"Failed to send email to {student.email}: {e}")
 
     # Process absent students
     for record in absent_students:
@@ -720,36 +734,37 @@ def send_attendance_notifications(request):
 
         # Render the email content from the HTML template for absent students
         html_message = render_to_string(
-            'email_templates/absent_attendance_email.html',  # Path to the new template
-            {'student': student, 'record': record}  # Context to be passed into the template
+            'email_templates/absent_attendance_email.html',
+            {'student': student, 'record': record}
         )
 
-        # Send the email notification for absent students
-        send_mail(
-            subject,
-            "This is an HTML email. Please enable HTML content to view it.",
-            settings.EMAIL_HOST_USER,
-            [student.email],
-            fail_silently=False,
-            html_message=html_message
-        )
-
-        # After sending the email, update the `email_sent` field to True
-        record.email_sent = True
-        record.save()
-
-    # Combine late and absent students for the response
-    all_notified_students = late_attendance_records | absent_students
+        try:
+            send_mail(
+                subject,
+                "This is an HTML email. Please enable HTML content to view it.",
+                email_config.email_host_user,
+                [student.email],
+                fail_silently=False,
+                html_message=html_message,
+                connection=connection
+            )
+            record.email_sent = True
+            record.save()
+            success_count += 1
+        except Exception as e:
+            error_count += 1
+            messages.error(request, f"Failed to send email to {student.email}: {e}")
 
     # Fetch students who already received the email (email_sent=True)
-    already_notified_students = Attendance.objects.filter(email_sent=True)
+    already_notified_students = Attendance.objects.filter(email_sent=True).order_by('-date')
 
-    # Display success message
-    messages.success(request, "Attendance notifications have been sent successfully!")
+    if success_count > 0:
+        messages.success(request, f"Successfully sent {success_count} attendance notifications!")
+    if success_count == 0 and error_count == 0:
+        messages.info(request, "No new unsent notifications pending.")
 
-    # Return a response with a template that displays the notified students
     return render(request, 'notification_sent.html', {
-        'notified_students': already_notified_students  # Show only those who have been notified
+        'notified_students': already_notified_students
     })
 
 

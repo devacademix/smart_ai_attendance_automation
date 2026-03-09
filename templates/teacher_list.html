@@ -1,101 +1,92 @@
 {% extends 'base.html' %}
 
+{% block title %}Manage Teachers{% endblock %}
+
 {% block content %}
-<style>h1 {
-    font-size: 2rem;
-    font-weight: bold;
-    text-align: center;
-    margin-bottom: 1.5rem;
-    color: hsl(0, 60%, 98%);
-}
+<div class="saas-page-header">
+    <div>
+        <h1 class="saas-page-title">Manage Teachers</h1>
+        <p class="saas-page-subtitle">View and manage faculty members and their system access.</p>
+    </div>
+    <div style="display: flex; gap: var(--space-3);">
+        <a href="{% url 'teacher_create' %}" class="saas-btn saas-btn-primary">
+            <i class="fas fa-plus"></i> Add New Teacher
+        </a>
+    </div>
+</div>
 
-.table {
-    width: 100%;
-    margin-top: 1rem;
-    border-collapse: collapse;
-    background-color: hsl(0, 0%, 0%);
-}
-
-.table th, .table td {
-    padding: 1rem;
-    text-align: left;
-    border-bottom: 1px solid #ddd;
-}
-
-.table th {
-    background-color: #007bff;
-    color: white;
-    font-size: 1.1rem;
-}
-
-.table tbody tr:hover {
-    background-color: hsl(0, 6%, 3%);
-}
-
-.table .btn {
-    padding: 0.5rem 1rem;
-    font-size: 0.875rem;
-    border-radius: 5px;
-    text-decoration: none;
-    margin-right: 0.5rem;
-}
-
-.table .btn-warning {
-    background-color: #ffc107;
-    color: white;
-    border: none;
-}
-
-.table .btn-warning:hover {
-    background-color: #e0a800;
-    color: inherit;
-}
-
-.table .btn-danger {
-    background-color: #dc3545;
-    color: white;
-    border: none;
-}
-
-.table .btn-danger:hover {
-    background-color: #c82333;
-    color: inherit;
-}
-
-</style>
-<h1>Teacher List</h1>
-<a href="{% url 'teacher_create' %}" class="btn btn-primary" style="background-color: #007bff; color: white; padding: 10px 15px; text-decoration: none; border-radius: 5px;">Add New Teacher</a>
-<table class="table">
-    <thead>
-        <tr>
-            <th>#</th>
-            <th>Name</th>
-            <th>Email</th>
-            <th>Phone</th>
-            <th>Department</th>
-            <th>User Account</th>
-            <th>Actions</th>
-        </tr>
-    </thead>
-    <tbody>
-        {% for teacher in teachers %}
-        <tr>
-            <td>{{ forloop.counter }}</td>
-            <td>{{ teacher.name }}</td>
-            <td>{{ teacher.email }}</td>
-            <td>{{ teacher.phone_number }}</td>
-            <td>{{ teacher.department.name|default:"-" }}</td>
-            <td>{{ teacher.user.username }}</td>
-            <td>
-                <a href="{% url 'teacher_update' teacher.id %}" class="btn btn-warning btn-sm">Edit</a>
-                <a href="{% url 'teacher_delete' teacher.id %}" class="btn btn-danger btn-sm">Delete</a>
-            </td>
-        </tr>
-        {% empty %}
-        <tr>
-            <td colspan="7" style="text-align: center;">No teachers found.</td>
-        </tr>
-        {% endfor %}
-    </tbody>
-</table>
+<div class="saas-card">
+    <div class="saas-card-header" style="justify-content: space-between;">
+        <h3 class="saas-card-title">Faculty Directory</h3>
+        
+        <div class="saas-header-search" style="width: auto; background: var(--bg-color); border: 1px solid var(--border-color);">
+            <i class="fas fa-search" style="color: var(--text-tertiary);"></i>
+            <input type="text" placeholder="Search teachers..." style="width: 200px;">
+        </div>
+    </div>
+    <div class="saas-table-container" style="border: none; box-shadow: none; border-radius: 0;">
+        <table class="saas-table">
+            <thead>
+                <tr>
+                    <th>Teacher Name</th>
+                    <th>Contact Info</th>
+                    <th>Department</th>
+                    <th>User Account</th>
+                    <th style="text-align: right;">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for teacher in teachers %}
+                <tr>
+                    <td>
+                        <div style="display: flex; align-items: center; gap: var(--space-3);">
+                            <div class="saas-avatar" style="width: 36px; height: 36px; background: var(--accent-light); color: var(--accent-color);">
+                                {{ teacher.name|make_list|first|upper }}
+                            </div>
+                            <div>
+                                <span style="font-weight: 600; color: var(--text-primary); display: block;">{{ teacher.name }}</span>
+                                <span style="font-size: 0.75rem; color: var(--text-tertiary);">Faculty</span>
+                            </div>
+                        </div>
+                    </td>
+                    <td>
+                        <div style="font-size: 0.875rem;">
+                            <div style="color: var(--text-secondary); margin-bottom: 2px;"><i class="fas fa-envelope" style="width: 16px;"></i> {{ teacher.email }}</div>
+                            <div style="color: var(--text-secondary);"><i class="fas fa-phone" style="width: 16px;"></i> {{ teacher.phone_number }}</div>
+                        </div>
+                    </td>
+                    <td>
+                        {% if teacher.department %}
+                        <span class="saas-badge" style="background: var(--bg-color); color: var(--text-secondary); border: 1px solid var(--border-color);">{{ teacher.department.name }}</span>
+                        {% else %}
+                        <span style="color: var(--text-tertiary); font-size: 0.875rem;">-</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        <span style="font-size: 0.875rem; font-weight: 500; color: var(--text-primary);">
+                            <i class="fas fa-user-shield" style="color: var(--text-tertiary); margin-right: 4px;"></i> 
+                            {{ teacher.user.username }}
+                        </span>
+                    </td>
+                    <td style="text-align: right;">
+                        <a href="{% url 'teacher_update' teacher.id %}" class="saas-btn saas-btn-secondary" style="padding: var(--space-2) var(--space-3);">
+                            <i class="fas fa-edit" style="color: var(--warning-color);"></i> Edit
+                        </a>
+                        <a href="{% url 'teacher_delete' teacher.id %}" class="saas-btn saas-btn-secondary" style="padding: var(--space-2) var(--space-3); margin-left: var(--space-1);">
+                            <i class="fas fa-trash-alt" style="color: var(--danger-color);"></i> Delete
+                        </a>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="5" style="text-align: center; color: var(--text-tertiary); padding: var(--space-6);">
+                        <i class="fas fa-chalkboard-teacher" style="font-size: 2rem; margin-bottom: var(--space-3); display: block;"></i>
+                        No teachers found.
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
 {% endblock %}
