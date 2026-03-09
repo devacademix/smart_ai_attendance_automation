@@ -1,0 +1,94 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<style>
+    h1 {
+        font-size: 2rem;
+        font-weight: bold;
+        text-align: center;
+        margin-bottom: 1.5rem;
+        color: hsl(0, 60%, 98%);
+    }
+
+    .table {
+        width: 100%;
+        margin-top: 1rem;
+        border-collapse: collapse;
+        background-color: hsl(0, 0%, 0%);
+    }
+
+    .table th,
+    .table td {
+        padding: 1rem;
+        text-align: left;
+        border-bottom: 1px solid #ddd;
+    }
+
+    .table th {
+        background-color: #007bff;
+        color: white;
+        font-size: 1.1rem;
+    }
+
+    .table tbody tr:hover {
+        background-color: hsl(0, 6%, 3%);
+    }
+
+    .table .btn {
+        padding: 0.5rem 1rem;
+        font-size: 0.875rem;
+        border-radius: 5px;
+        text-decoration: none;
+        margin-right: 0.5rem;
+    }
+
+    .table .btn-warning {
+        background-color: #ffc107;
+        color: white;
+        border: none;
+    }
+
+    .table .btn-warning:hover {
+        background-color: #e0a800;
+        color: inherit;
+    }
+
+    .table .btn-danger {
+        background-color: #dc3545;
+        color: white;
+        border: none;
+    }
+
+    .table .btn-danger:hover {
+        background-color: #c82333;
+        color: inherit;
+    }
+</style>
+<h1>Semester List</h1>
+<a href="{% url 'semester_create' %}" class="btn btn-primary">Add New Semester</a>
+<table class="table">
+    <thead>
+        <tr>
+            <th>#</th>
+            <th>Name</th>
+            <th>Start Date</th>
+            <th>End Date</th>
+            <th>Actions</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for semester in semesters %}
+        <tr>
+            <td>{{ forloop.counter }}</td>
+            <td>{{ semester.name }}</td>
+            <td>{{ semester.start_date }}</td>
+            <td>{{ semester.end_date }}</td>
+            <td>
+                <a href="{% url 'semester_update' semester.id %}" class="btn btn-warning btn-sm">Edit</a>
+                <a href="{% url 'semester_delete' semester.id %}" class="btn btn-danger btn-sm">Delete</a>
+            </td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% endblock %}

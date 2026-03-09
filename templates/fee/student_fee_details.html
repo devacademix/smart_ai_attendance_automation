@@ -1,0 +1,307 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fee Details for {{ student.name }}</title>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
+    <style>
+        /* General Styles */
+        body {
+            font-family: 'Roboto', sans-serif;
+            background-color: #f8f9fa;
+            margin: 0;
+            padding: 0;
+            color: #333;
+        }
+
+        h1, h2, h3 {
+            margin: 0;
+            padding: 10px 0;
+            text-align: center;
+        }
+
+        h1 {
+            color: #007bff;
+        }
+
+        h2 {
+            font-size: 22px;
+        }
+
+        h3 {
+            font-size: 20px;
+            color: #555;
+            margin-bottom: 15px;
+        }
+
+        /* Message Container */
+        .alert-container {
+            margin: 20px auto;
+            max-width: 800px;
+            padding: 10px;
+            background-color: #f8d7da;
+            border-radius: 5px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .alert {
+            margin: 5px;
+            padding: 10px;
+            width: 100%;
+            text-align: center;
+            border-radius: 5px;
+        }
+
+        .alert-success {
+            background-color: #d4edda;
+            color: #155724;
+        }
+
+        .alert-error {
+            background-color: #f8d7da;
+            color: #721c24;
+        }
+
+        .alert-info {
+            background-color: #d1ecf1;
+            color: #0c5460;
+        }
+
+        .alert-warning {
+            background-color: #fff3cd;
+            color: #856404;
+        }
+
+        /* Container Box */
+        .container {
+            max-width: 1200px;
+            margin: 30px auto;
+            padding: 20px;
+            background-color: #fff;
+            border-radius: 10px;
+            box-shadow: 0 8px 16px rgba(0, 0, 0, 0.1);
+        }
+
+        /* Header with Back Button */
+        .header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 20px;
+        }
+
+        .back-button {
+            padding: 10px 15px;
+            font-size: 14px;
+            font-weight: bold;
+            color: #fff;
+            background-color: #6c757d;
+            border: none;
+            border-radius: 5px;
+            text-decoration: none;
+            transition: background-color 0.3s ease;
+        }
+
+        .back-button:hover {
+            background-color: #5a6268;
+        }
+
+        /* Fee Summary Section */
+        .fee-summary {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            margin-bottom: 30px;
+            padding: 20px;
+            background: #e9ecef;
+            border-radius: 8px;
+        }
+
+        .fee-summary h2 {
+            margin: 10px 0;
+            color: #28a745;
+        }
+
+        .add-fee-button {
+            padding: 12px 20px;
+            font-size: 16px;
+            font-weight: 700;
+            color: #fff;
+            background-color: #007bff;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            text-decoration: none;
+            transition: all 0.3s ease;
+        }
+
+        .add-fee-button:hover {
+            background-color: #0056b3;
+        }
+
+        /* Table Styling */
+        .table-wrapper {
+            overflow-x: auto;
+            margin-top: 20px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            background: #fff;
+            border-radius: 8px;
+            overflow: hidden;
+        }
+
+        thead {
+            background-color: #007bff;
+        }
+
+        th {
+            padding: 15px;
+            text-align: left;
+            color: white;
+            font-size: 16px;
+        }
+
+        td {
+            padding: 15px;
+            font-size: 14px;
+            color: #333;
+        }
+
+        tr:nth-child(even) {
+            background-color: #f8f9fa;
+        }
+
+        tr:hover {
+            background-color: #f1f3f5;
+        }
+
+        .payment-section p {
+            margin: 5px 0;
+            font-size: 13px;
+        }
+
+        .no-payment {
+            color: #dc3545;
+            font-style: italic;
+        }
+
+        .pay-link {
+            display: inline-block;
+            padding: 8px 12px;
+            font-size: 14px;
+            color: #fff;
+            background-color: #28a745;
+            border-radius: 5px;
+            text-decoration: none;
+            transition: all 0.3s ease;
+        }
+
+        .pay-link:hover {
+            background-color: #218838;
+        }
+
+        /* Responsive Design */
+        @media (max-width: 768px) {
+            .fee-summary {
+                flex-direction: column;
+                text-align: center;
+            }
+
+            th, td {
+                font-size: 13px;
+            }
+
+            .add-fee-button {
+                margin-top: 10px;
+            }
+
+            .header {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+
+            .back-button {
+                margin-bottom: 10px;
+            }
+        }
+    </style>
+</head>
+<body>
+    {% if messages %}
+    <div class="alert-container">
+        {% for message in messages %}
+            <div class="alert alert-{{ message.tags }}" id="message-{{ forloop.counter }}">
+                {{ message }}
+            </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    <div class="container">
+        <div class="header">
+            <a href="{% url 'student_list_with_fees' %}" class="back-button">← Back</a>
+            <h1>Fee Details for {{ student.name }}</h1>
+        </div>
+        <div class="fee-summary">
+            <h2>Total Paid: ₹{{ total_paid }}</h2>
+            <h2>Total Due: ₹{{ total_balance }}</h2>
+            <a href="{% url 'add_fee_for_student' student.id %}" class="add-fee-button">+ Add Fee</a>
+        </div>
+
+        <h3>Fee Records</h3>
+        <div class="table-wrapper">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Fee Amount (₹)</th>
+                        <th>Month</th>
+                        <th>Due Date</th>
+                        <th>Balance (₹)</th>
+                        <th>Payments</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for fee in student.fees.all %}
+                        <tr>
+                            <td>₹{{ fee.total_fee }}</td>
+                            <td>{{ fee.added_month }}</td>
+                            <td>{{ fee.due_date }}</td>
+                            <td>₹{{ fee.balance }}</td>
+                            <td>
+                                <div class="payment-section">
+                                    {% for payment in fee.payments.all %}
+                                        <p>₹{{ payment.amount }} - {{ payment.date }}</p>
+                                    {% empty %}
+                                        <p class="no-payment">No Payments Yet</p>
+                                    {% endfor %}
+                                </div>
+                            </td>
+                            <td>
+                                <a href="{% url 'pay_fee_for_student' fee.id %}" class="pay-link">Pay</a>
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <script>
+        // JavaScript to hide messages after 5 seconds
+        setTimeout(function() {
+            var alertElements = document.querySelectorAll('.alert-container .alert');
+            alertElements.forEach(function(alertElement) {
+                alertElement.style.display = 'none';
+            });
+        }, 5000);
+    </script>
+</body>
+</html>

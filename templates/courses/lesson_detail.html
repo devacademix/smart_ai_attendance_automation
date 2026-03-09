@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="{{ lesson.description }}">
+    <title>{{ lesson.title }}</title>
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body {
+            background-color: #f5f7fa;
+            font-family: 'Arial', sans-serif;
+        }
+        .lesson-container {
+            max-width: 900px;
+            margin: 20px auto;
+            background: #fff;
+            box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.15);
+            border-radius: 10px;
+            overflow: hidden;
+            transition: all 0.3s ease-in-out;
+        }
+        .lesson-container:hover {
+            box-shadow: 0px 6px 15px rgba(0, 0, 0, 0.25);
+        }
+        .lesson-header {
+            background: linear-gradient(135deg, #007bff, #0056b3);
+            color: white;
+            padding: 30px;
+            text-align: center;
+            border-bottom: 3px solid #0056b3;
+        }
+        .lesson-header h1 {
+            margin: 0;
+            font-size: 2.5rem;
+            font-weight: 700;
+        }
+        .lesson-content {
+            padding: 20px;
+        }
+        .video-container {
+            position: relative;
+            overflow: hidden;
+            padding-top: 56.25%; /* Aspect ratio 16:9 */
+            margin-bottom: 20px;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+        }
+        .video-container iframe,
+        .video-container video {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            border-radius: 8px;
+        }
+        .notes-section {
+            background: #f1f3f5;
+            padding: 15px;
+            border-radius: 5px;
+            border-left: 4px solid #007bff;
+            margin-top: 20px;
+        }
+        .notes-section h4 {
+            margin-top: 0;
+        }
+        .action-buttons {
+            padding: 20px;
+            text-align: center;
+            background: #f8f9fa;
+            border-top: 1px solid #ddd;
+        }
+        .btn-custom {
+            padding: 10px 20px;
+            font-size: 1rem;
+            border-radius: 5px;
+            transition: all 0.3s ease-in-out;
+        }
+        .btn-custom-primary {
+            background-color: #007bff;
+            border: none;
+            color: white;
+        }
+        .btn-custom-primary:hover {
+            background-color: #0056b3;
+        }
+        .btn-custom-success {
+            background-color: #28a745;
+            border: none;
+            color: white;
+        }
+        .btn-custom-success:hover {
+            background-color: #1e7e34;
+        }
+        @media (max-width: 768px) {
+            .lesson-header h1 {
+                font-size: 2rem;
+            }
+            .btn-custom {
+                font-size: 0.9rem;
+                padding: 8px 15px;
+            }
+            .lesson-content {
+                padding: 15px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="lesson-container">
+        <!-- Lesson Header -->
+        <div class="lesson-header">
+            <h1>{{ lesson.title }}</h1>
+        </div>
+
+        <!-- Lesson Content -->
+        <div class="lesson-content">
+            <p class="text-muted">{{ lesson.description }}</p>
+
+            <!-- Video Section -->
+            {% if lesson.youtube_embed_link or lesson.video_file %}
+                <h3 class="mb-3">Watch the Lesson</h3>
+                <div class="video-container">
+                    {% if lesson.youtube_embed_link %}
+                        <iframe 
+                            src="{{ lesson.youtube_embed_link }}" 
+                            id="lessonVideo" 
+                            frameborder="0" 
+                            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" 
+                            allowfullscreen>
+                        </iframe>
+                    {% elif lesson.video_file %}
+                        <video id="lessonVideo" controls>
+                            <source src="{{ lesson.video_file.url }}" type="video/mp4">
+                            Your browser does not support the video tag.
+                        </video>
+                    {% endif %}
+                </div>
+            {% else %}
+                <p class="text-danger">No video available for this lesson.</p>
+            {% endif %}
+
+            <!-- Display YouTube Video URL -->
+            {% if lesson.youtube_video_url %}
+                <p><strong>YouTube Video URL:</strong> <a href="{{ lesson.youtube_video_url }}" target="_blank">{{ lesson.youtube_video_url }}</a></p>
+            {% endif %}
+
+            <!-- Lesson Notes -->
+            {% if lesson.lesson_notes %}
+                <div class="notes-section">
+                    <h4>Lesson Notes</h4>
+                    <p>{{ lesson.lesson_notes }}</p>
+                </div>
+            {% endif %}
+        </div>
+
+        <!-- Action Buttons -->
+        <div class="action-buttons">
+            <a href="{% url 'course_detail' lesson.course.id %}" class="btn btn-custom btn-custom-primary">Back to Course</a>
+            <a href="#" class="btn btn-custom btn-custom-success">Mark as Completed</a>
+        </div>
+    </div>
+
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha3/dist/js/bootstrap.bundle.min.js"></script>
+
+    <!-- JavaScript to Track Video Completion -->
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const video = document.getElementById('lessonVideo');
+    
+            if (video && video.tagName.toLowerCase() === 'video') {
+                video.addEventListener('ended', () => {
+                    speakMessage("Congratulations! You've completed this lesson. Please proceed to the next lesson.", () => {
+                        window.location.href = "{% url 'course_detail' lesson.course.id %}";
+                    });
+                });
+            }
+    
+            function speakMessage(message, callback) {
+                const speech = new SpeechSynthesisUtterance(message);
+                speech.lang = 'en-US';
+                speech.rate = 1;
+                speech.pitch = 1;
+                speech.onend = callback; // Trigger callback when speech ends
+                window.speechSynthesis.speak(speech);
+            }
+        });
+    </script>    
+</body>
+</html>

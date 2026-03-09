@@ -1,0 +1,110 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mark Attendance for {{ course.name }}</title>
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Sharp" rel="stylesheet">
+    <link rel="stylesheet" href="{% static 'style.css' %}">
+    <style>
+        .camera-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 40px;
+            background: var(--color-white);
+            border-radius: var(--card-border-radius);
+            margin-top: 2rem;
+            box-shadow: var(--box-shadow);
+        }
+        .start-btn {
+            padding: 1rem 2rem;
+            background: #7380ec;
+            color: white;
+            border-radius: var(--border-radius-1);
+            font-size: 1.2rem;
+            font-weight: bold;
+            cursor: pointer;
+            border: none;
+            transition: all 300ms ease;
+        }
+        .start-btn:hover {
+            background: #5d67be;
+            transform: scale(1.05);
+        }
+        .info-card {
+            margin-top: 1rem;
+            background: var(--color-light);
+            padding: 1.5rem;
+            border-radius: var(--border-radius-1);
+            width: 100%;
+            max-width: 500px;
+        }
+        .info-card h3 {
+            margin-bottom: 0.5rem;
+            color: var(--color-dark);
+        }
+        .info-card p {
+            color: var(--color-dark-variant);
+        }
+    </style>
+</head>
+
+<body>
+    <header>
+        <div class="logo">
+            <h2>A<span class="danger">P</span>YC<span class="danger">O</span>DE<span class="danger">R</span></h2>
+        </div>
+        <div class="navbar">
+            <a href="{% url 'teacher_dashboard' %}" class="active">
+                <span class="material-icons-sharp">home</span>
+                <h3>Dashboard</h3>
+            </a>
+            <a href="{% url 'logout' %}">
+                <span class="material-icons-sharp">logout</span>
+                <h3>Logout</h3>
+            </a>
+        </div>
+        <div class="theme-toggler">
+            <span class="material-icons-sharp active">light_mode</span>
+            <span class="material-icons-sharp">dark_mode</span>
+        </div>
+    </header>
+
+    <div class="container" style="display: flex; justify-content: center;">
+        <main style="width: 100%; max-width: 800px;">
+            <div class="camera-container">
+                <h1 style="margin-bottom: 1rem;">Mark Attendance</h1>
+                <h2 style="color: var(--color-primary); margin-bottom: 2rem;">{{ course.name }} ({{ assigned_class.semester.name }})</h2>
+                
+                <div class="info-card">
+                    <h3>Camera Configuration</h3>
+                    <p><strong>Location:</strong> {{ camera.location }}</p>
+                    <p><strong>Name:</strong> {{ camera.name }}</p>
+                    <p><strong>IP/Source:</strong> {{ camera.camera_source }}</p>
+                </div>
+
+                <div style="margin-top: 3rem;">
+                    <!-- Form to trigger backend camera activation -->
+                    <form action="{% url 'start_teacher_camera' assigned_class.id %}" method="POST">
+                        {% csrf_token %}
+                        <button type="submit" class="start-btn">
+                            <span class="material-icons-sharp" style="vertical-align: middle;">videocam</span>
+                            Start Camera & Mark Attendance
+                        </button>
+                    </form>
+                </div>
+                
+                <p style="margin-top: 2rem; color: var(--color-danger); text-align: center;">
+                    Note: Clicking the button above will launch the camera view in a new window on the server device to recognize student faces automatically. Press 'q' on the camera window to stop marking attendance.
+                </p>
+            </div>
+        </main>
+    </div>
+
+    <script src="{% static 'app.js' %}"></script>
+</body>
+</html>

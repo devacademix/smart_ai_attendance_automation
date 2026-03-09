@@ -1,0 +1,8 @@
+<p>Are you sure you want to delete the settings for 
+    {{ settings.student.name if settings.student else 'Global' }}?</p>
+ <form method="post">
+     {% csrf_token %}
+     <button type="submit">Confirm</button>
+     <a href="{% url 'settings_list' %}">Cancel</a>
+ </form>
+ 

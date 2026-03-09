@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+
+{% block title %}Leave Records{% endblock %}
+
+{% block content %}
+    <h2 class="leave-records-title">Leave Records</h2>
+    <div class="leave-table-container">
+        <table>
+            <thead>
+                <tr>
+                    <th>Student</th>
+                    <th>Reason</th>
+                    <th>Start Date</th>
+                    <th>End Date</th>
+                    <th>Status</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for leave in leaves %}
+                <tr>
+                    <td>{{ leave.student.name }}</td>
+                    <td class="leave-reason">{{ leave.reason }}</td>
+                    <td>{{ leave.start_date }}</td>
+                    <td>{{ leave.end_date }}</td>
+                    <td>
+                        {% if leave.approved %}
+                            <span class="leave-status-approved">Approved</span>
+                        {% else %}
+                            <span class="leave-status-pending">Pending</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if leave.approved %}
+                            <a href="{% url 'leave_reject' leave.id %}" class="leave-action-link leave-reject">Reject</a> |
+                        {% else %}
+                            <a href="{% url 'leave_approve' leave.id %}" class="leave-action-link leave-approve">Approve</a> |
+                        {% endif %}
+                        <a href="{% url 'leave_delete' leave.id %}" class="leave-action-link leave-delete">Delete</a>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+{% endblock %}

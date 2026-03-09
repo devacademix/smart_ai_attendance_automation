@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Edit Student</title>
+    <style>
+        /* Global Styles */
+        body {
+            font-family: 'Roboto', Arial, sans-serif;
+            background-color: #f3f4f6;
+            margin: 0;
+            padding: 0;
+        }
+        .container {
+            max-width: 700px;
+            margin: 40px auto;
+            background-color: #fff;
+            padding: 30px;
+            border-radius: 15px;
+            box-shadow: 0 6px 25px rgba(0, 0, 0, 0.1);
+            transition: box-shadow 0.3s ease-in-out;
+        }
+        .container:hover {
+            box-shadow: 0 8px 30px rgba(0, 0, 0, 0.2);
+        }
+        h2 {
+            text-align: center;
+            color: #4a90e2;
+            margin-bottom: 25px;
+            font-size: 2rem;
+        }
+        form {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+        .form-group {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        .form-row {
+            display: flex;
+            gap: 20px;
+        }
+        .form-row .form-group {
+            flex: 1;
+        }
+        label {
+            font-weight: 600;
+            color: #333;
+        }
+        input,
+        textarea,
+        select {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 8px;
+            font-size: 1rem;
+            transition: border-color 0.3s ease, box-shadow 0.3s ease;
+        }
+        input:focus,
+        textarea:focus,
+        select:focus {
+            border-color: #4a90e2;
+            box-shadow: 0 0 5px rgba(74, 144, 226, 0.5);
+            outline: none;
+        }
+        textarea {
+            resize: none;
+        }
+        .btn {
+            display: inline-block;
+            padding: 12px 20px;
+            border-radius: 25px;
+            font-size: 1rem;
+            font-weight: 600;
+            text-decoration: none;
+            text-align: center;
+            transition: background-color 0.3s ease, box-shadow 0.3s ease;
+            cursor: pointer;
+        }
+        .btn-primary {
+            background-color: #4a90e2;
+            color: #fff;
+            border: none;
+        }
+        .btn-primary:hover {
+            background-color: #357abf;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+        }
+        .btn-secondary {
+            background-color: #6c757d;
+            color: #fff;
+        }
+        .btn-secondary:hover {
+            background-color: #5a6268;
+        }
+        .actions {
+            text-align: center;
+            margin-top: 20px;
+        }
+        .error-message {
+            color: red;
+            font-size: 0.85rem;
+            margin-top: -5px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h2>Edit Student: {{ student.name }}</h2>
+        <form method="POST">
+            {% csrf_token %}
+
+            <div class="form-group">
+                <label for="id_name">Name</label>
+                {{ form.name }}
+                <div class="error-message">{{ form.name.errors }}</div>
+            </div>
+
+            <div class="form-group">
+                <label for="id_email">Email</label>
+                {{ form.email }}
+                <div class="error-message">{{ form.email.errors }}</div>
+            </div>
+
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="id_phone_number">Phone Number</label>
+                    {{ form.phone_number }}
+                    <div class="error-message">{{ form.phone_number.errors }}</div>
+                </div>
+                <div class="form-group">
+                    <label for="id_roll_no">Roll Number</label>
+                    {{ form.roll_no }}
+                    <div class="error-message">{{ form.roll_no.errors }}</div>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label for="id_address">Address</label>
+                {{ form.address }}
+                <div class="error-message">{{ form.address.errors }}</div>
+            </div>
+
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="id_date_of_birth">Date of Birth</label>
+                    {{ form.date_of_birth }}
+                    <div class="error-message">{{ form.date_of_birth.errors }}</div>
+                </div>
+                <div class="form-group">
+                    <label for="id_joining_date">Joining Date</label>
+                    {{ form.joining_date }}
+                    <div class="error-message">{{ form.joining_date.errors }}</div>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label for="id_face_embedding">Face Embedding (JSON)</label>
+                {{ form.face_embedding }}
+                <div class="error-message">{{ form.face_embedding.errors }}</div>
+            </div>
+
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="id_authorized">Authorized</label>
+                    {{ form.authorized }}
+                    <div class="error-message">{{ form.authorized.errors }}</div>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label for="id_session">Session</label>
+                {{ form.session }}
+                <div class="error-message">{{ form.session.errors }}</div>
+            </div>
+
+            <div class="form-group">
+                <label for="id_courses">Courses</label>
+                {{ form.courses }}
+                <div class="error-message">{{ form.courses.errors }}</div>
+            </div>
+
+            <div class="form-group">
+                <label for="id_department">Department</label>
+                {{ form.department }}
+                <div class="error-message">{{ form.department.errors }}</div>
+            </div>
+
+            <div class="form-group">
+                <label for="id_semester">Semester</label>
+                {{ form.semester }}
+                <div class="error-message">{{ form.semester.errors }}</div>
+            </div>
+
+            <div class="actions">
+                <button type="submit" class="btn btn-primary">Save Changes</button>
+                <a href="{% url 'student-detail' pk=student.pk %}" class="btn btn-secondary">Back to Student Details</a>
+            </div>
+        </form>
+    </div>
+</body>
+</html>

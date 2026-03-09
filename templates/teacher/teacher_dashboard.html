@@ -1,0 +1,95 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Teacher Dashboard</title>
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Sharp" rel="stylesheet">
+    <link rel="stylesheet" href="{% static 'style.css' %}">
+</head>
+
+<body>
+    <header>
+        <div class="logo">
+            <h2>A<span class="danger">P</span>YC<span class="danger">O</span>DE<span class="danger">R</span></h2>
+        </div>
+        <div class="navbar">
+            <a href="{% url 'teacher_dashboard' %}" class="active">
+                <span class="material-icons-sharp">home</span>
+                <h3>Dashboard</h3>
+            </a>
+            <a href="{% url 'logout' %}">
+                <span class="material-icons-sharp">logout</span>
+                <h3>Logout</h3>
+            </a>
+        </div>
+        <div class="theme-toggler">
+            <span class="material-icons-sharp active">light_mode</span>
+            <span class="material-icons-sharp">dark_mode</span>
+        </div>
+    </header>
+
+    <div class="container">
+        <aside>
+            <div class="profile">
+                <div class="top">
+                    <div class="profile-photo">
+                        <img src="{% static 'images/defual.png' %}" alt="Profile Photo">
+                    </div>
+                    <div class="info">
+                        <p>Hey, <b>{{ teacher.name }}</b></p>
+                        <small class="text-muted">{{ teacher.department.name }}</small>
+                    </div>
+                </div>
+                <div class="about">
+                    <div class="profile-details">
+                        <p><strong>Email:</strong> {{ teacher.email }}</p>
+                        <p><strong>Phone:</strong> {{ teacher.phone }}</p>
+                    </div>
+                </div>
+            </div>
+        </aside>
+
+        <main>
+            <div class="timetable" id="timetable">
+                <div>
+                    <h2>Assigned Classes</h2>
+                </div>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Course</th>
+                            <th>Semester</th>
+                            <th>Department</th>
+                            <th>Camera Location</th>
+                            <th>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for assigned_class in assigned_classes %}
+                        <tr>
+                            <td>{{ assigned_class.course.name }}</td>
+                            <td>{{ assigned_class.semester.name }}</td>
+                            <td>{{ assigned_class.department.name }}</td>
+                            <td>{{ assigned_class.camera.location }} ({{ assigned_class.camera.name }})</td>
+                            <td>
+                                <a href="{% url 'teacher_mark_attendance' assigned_class.id %}" class="btn btn-primary" style="padding: 5px 10px; background-color: #7380ec; color: white; border-radius: var(--border-radius-1); text-decoration: none; margin-right: 10px;">Mark Attendance</a>
+                                <a href="{% url 'teacher_view_attendance' assigned_class.id %}" class="btn btn-primary" style="padding: 5px 10px; background-color: #41f1b6; color: white; border-radius: var(--border-radius-1); text-decoration: none;">View Attendance</a>
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="5">No classes assigned.</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </main>
+    </div>
+
+    <script src="{% static 'app.js' %}"></script>
+</body>
+</html>

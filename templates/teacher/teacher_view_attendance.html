@@ -1,0 +1,163 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>View Attendance</title>
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Sharp" rel="stylesheet">
+    <link rel="stylesheet" href="{% static 'style.css' %}">
+    <style>
+        .filter-section {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            margin-bottom: 20px;
+            background: var(--color-white);
+            padding: 20px;
+            border-radius: var(--card-border-radius);
+            box-shadow: var(--box-shadow);
+        }
+
+        .filter-section input[type="date"] {
+            padding: 10px;
+            border: 1px solid var(--color-info-dark);
+            border-radius: var(--border-radius-1);
+            background: transparent;
+            color: var(--color-dark);
+            font-family: inherit;
+        }
+
+        .filter-section button {
+            padding: 10px 20px;
+            background: var(--color-primary);
+            color: white;
+            border: none;
+            border-radius: var(--border-radius-1);
+            cursor: pointer;
+            font-weight: bold;
+        }
+
+        .filter-section button:hover {
+            opacity: 0.8;
+        }
+        
+        table {
+            width: 100%;
+            background: var(--color-white);
+            padding: 20px;
+            border-radius: var(--card-border-radius);
+            box-shadow: var(--box-shadow);
+            border-collapse: collapse;
+        }
+        
+        table th, table td {
+            padding: 12px 15px;
+            text-align: left;
+            border-bottom: 1px solid var(--color-light);
+            color: var(--color-dark);
+        }
+
+        table th {
+            text-transform: uppercase;
+            font-size: 0.85rem;
+        }
+        
+        .status-present {
+            color: #41f1b6;
+            font-weight: bold;
+        }
+        
+        .status-absent {
+            color: #ff7782;
+            font-weight: bold;
+        }
+
+        .status-leave {
+            color: #ffbb55;
+            font-weight: bold;
+        }
+    </style>
+</head>
+
+<body>
+    <header>
+        <div class="logo">
+            <h2>A<span class="danger">P</span>YC<span class="danger">O</span>DE<span class="danger">R</span></h2>
+        </div>
+        <div class="navbar">
+            <a href="{% url 'teacher_dashboard' %}" class="active">
+                <span class="material-icons-sharp">home</span>
+                <h3>Dashboard</h3>
+            </a>
+            <a href="{% url 'logout' %}">
+                <span class="material-icons-sharp">logout</span>
+                <h3>Logout</h3>
+            </a>
+        </div>
+        <div class="theme-toggler">
+            <span class="material-icons-sharp active">light_mode</span>
+            <span class="material-icons-sharp">dark_mode</span>
+        </div>
+    </header>
+
+    <div class="container" style="display: block; width: 100%; max-width: 1200px; margin: 0 auto; padding-top: 2rem;">
+        <main style="width: 100%;">
+            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.5rem;">
+                <h1>Attendance for {{ assigned_class.course.name }} ({{ assigned_class.department.name }} - {{ assigned_class.semester.name }})</h1>
+                <a href="{% url 'teacher_dashboard' %}" style="padding: 10px 20px; background: #6c757d; color: white; border-radius: var(--border-radius-1); text-decoration: none;">Back to Dashboard</a>
+            </div>
+
+            <form method="get" class="filter-section">
+                <label for="date" style="color: var(--color-dark); font-weight: bold;">Select Date:</label>
+                <input type="date" id="date" name="date" value="{{ filter_date }}">
+                <button type="submit">View</button>
+            </form>
+
+            <div class="timetable">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Student ID</th>
+                            <th>Name</th>
+                            <th>Status</th>
+                            <th>Check-in Time</th>
+                            <th>Check-out Time</th>
+                            <th>Is Late</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% if attendances %}
+                            {% for attendance in attendances %}
+                            <tr>
+                                <td>{{ attendance.student.id }}</td>
+                                <td>{{ attendance.student.name }}</td>
+                                <td class="
+                                    {% if attendance.status == 'Present' %}status-present
+                                    {% elif attendance.status == 'Absent' %}status-absent
+                                    {% elif attendance.status == 'Leave' %}status-leave
+                                    {% endif %}
+                                ">{{ attendance.status }}</td>
+                                <td>{{ attendance.check_in_time|time:"H:i"|default:"-" }}</td>
+                                <td>{{ attendance.check_out_time|time:"H:i"|default:"-" }}</td>
+                                <td>{% if attendance.is_late %}<span class="danger">Yes</span>{% else %}-{% endif %}</td>
+                            </tr>
+                            {% endfor %}
+                        {% else %}
+                            <tr>
+                                <td colspan="6" style="text-align: center; padding: 2rem;">
+                                    No attendance records found for {{ filter_date }}. <br><br>
+                                    <span class="text-muted">If attendance hasn't been taken yet, all students are considered absent or undefined for this date until marked.</span>
+                                </td>
+                            </tr>
+                        {% endif %}
+                    </tbody>
+                </table>
+            </div>
+        </main>
+    </div>
+
+    <script src="{% static 'app.js' %}"></script>
+</body>
+</html>

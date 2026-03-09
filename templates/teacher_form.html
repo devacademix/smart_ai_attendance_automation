@@ -1,0 +1,133 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<style>
+    .uni-h1 {
+        font-size: 2rem;
+        font-weight: bold;
+        text-align: center;
+        margin-bottom: 1.5rem;
+        color: hsl(0, 56%, 98%);
+    }
+    
+    .uni-form {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 1.5rem;
+        margin-top: 1rem;
+    }
+    
+    .uni-form-group {
+        width: 100%;
+        max-width: 600px;
+        display: flex;
+        flex-direction: column;
+    }
+    
+    .uni-form-group label {
+        font-size: 1rem;
+        margin-bottom: 0.5rem;
+        color: hsl(0, 50%, 95%);
+    }
+    
+    .uni-form-group input, .uni-form-group select {
+        padding: 0.75rem;
+        font-size: 1rem;
+        border-radius: 5px;
+        border: 1px solid #ccc;
+        width: 100%;
+        box-sizing: border-box;
+    }
+    
+    .uni-form-group input:focus, .uni-form-group select:focus {
+        border-color: #007bff;
+        outline: none;
+    }
+    
+    .uni-btn {
+        padding: 0.75rem 2rem;
+        font-size: 1rem;
+        border-radius: 5px;
+        cursor: pointer;
+        text-decoration: none;
+        width: 100%;
+        max-width: 200px;
+        text-align: center;
+    }
+    
+    .uni-btn-success {
+        background-color: #28a745;
+        color: white;
+        border: none;
+    }
+    
+    .uni-btn-success:hover {
+        background-color: #218838;
+    }
+    
+    .uni-btn-secondary {
+        background-color: hsl(56, 94%, 52%);
+        color: white;
+        border: none;
+    }
+    
+    .uni-btn-secondary:hover {
+        background-color: hsl(180, 8%, 97%);
+    }
+</style>
+
+<h1 class="uni-h1">{% if teacher %}Update{% else %}Create{% endif %} Teacher</h1>
+<form method="post" class="uni-form">
+    {% csrf_token %}
+    
+    {% if not teacher %}
+    <div class="uni-form-group">
+        <label for="username">Username:</label>
+        <input type="text" id="username" name="username" class="form-control" required placeholder="Enter new username">
+    </div>
+    <div class="uni-form-group">
+        <label for="password">Password:</label>
+        <input type="password" id="password" name="password" class="form-control" required placeholder="Enter password for user account">
+    </div>
+    {% else %}
+    <div class="uni-form-group">
+        <label>User Account:</label>
+        <input type="text" disabled value="{{ teacher.user.username }}" class="form-control" style="background-color: #444; color: white;">
+    </div>
+    <div class="uni-form-group">
+        <label for="password">New Password (leave blank to keep current password):</label>
+        <input type="password" id="password" name="password" class="form-control" placeholder="Enter new password to change it">
+    </div>
+    {% endif %}
+
+    <div class="uni-form-group">
+        <label for="name">Name:</label>
+        <input type="text" id="name" name="name" class="form-control" value="{{ teacher.name|default:'' }}" required placeholder="Enter teacher name">
+    </div>
+
+    <div class="uni-form-group">
+        <label for="email">Email:</label>
+        <input type="email" id="email" name="email" class="form-control" value="{{ teacher.email|default:'' }}" required placeholder="Enter email">
+    </div>
+
+    <div class="uni-form-group">
+        <label for="phone_number">Phone Number:</label>
+        <input type="text" id="phone_number" name="phone_number" class="form-control" value="{{ teacher.phone_number|default:'' }}" placeholder="Enter phone number">
+    </div>
+
+    <div class="uni-form-group">
+        <label for="department_id">Department:</label>
+        <select id="department_id" name="department_id" class="form-control">
+            <option value="">Select a department (optional)</option>
+            {% for dep in departments %}
+            <option value="{{ dep.id }}" {% if teacher and teacher.department.id == dep.id %}selected{% endif %}>{{ dep.name }}</option>
+            {% endfor %}
+        </select>
+    </div>
+
+    <button type="submit" class="uni-btn uni-btn-success">Save</button>
+    <a href="{% url 'teacher_list' %}" class="uni-btn uni-btn-secondary">Cancel</a>
+</form>
+
+{% endblock %}
