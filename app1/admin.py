@@ -151,6 +151,10 @@ class TeacherAdmin(admin.ModelAdmin):
 
 @admin.register(AssignedClass)
 class AssignedClassAdmin(admin.ModelAdmin):
-    list_display = ('teacher', 'course', 'department', 'semester', 'camera')
+    list_display = ('teacher', 'course', 'department', 'semester', 'get_cameras')
     search_fields = ('teacher__name', 'course__name')
+
+    def get_cameras(self, obj):
+        return ", ".join([c.name for c in obj.cameras.all()])
+    get_cameras.short_description = 'Cameras'
 

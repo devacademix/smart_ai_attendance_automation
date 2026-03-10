@@ -75,8 +75,11 @@
                         {% endif %}
                     </td>
                     <td style="text-align: right;">
-                        <a href="{% url 'student-authorize' pk=student.pk %}" class="saas-btn saas-btn-secondary" style="padding: var(--space-2) var(--space-3);">
+                        <a href="{% url 'student-authorize' pk=student.pk %}" class="saas-btn saas-btn-secondary" style="padding: var(--space-2) var(--space-3); margin-right: 5px;">
                             <i class="fas fa-sliders-h"></i> Manage
+                        </a>
+                        <a href="{% url 'student-delete' pk=student.pk %}" class="saas-btn" style="padding: var(--space-2) var(--space-3); background: #fee2e2; color: #dc2626; border: 1px solid #fecaca;">
+                            <i class="fas fa-trash-alt"></i> Delete
                         </a>
                     </td>
                 </tr>

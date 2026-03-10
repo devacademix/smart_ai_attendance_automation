@@ -122,4 +122,7 @@ urlpatterns = [
     path('assigned-classes/update/<int:pk>/', views.assigned_class_update, name='assigned_class_update'),
     path('assigned-classes/delete/<int:pk>/', views.assigned_class_delete, name='assigned_class_delete'),
 
+    # ── Multi-Camera Monitor (staff only) ──────────────────────────────────────
+    path('monitor-cameras/', views.monitor_cameras, name='monitor_cameras'),
+
 ]

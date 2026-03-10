@@ -334,7 +334,7 @@ class AssignedClass(models.Model):
     course = models.ForeignKey(Course, on_delete=models.CASCADE)
     department = models.ForeignKey(Department, on_delete=models.CASCADE)
     semester = models.ForeignKey(Semester, on_delete=models.CASCADE)
-    camera = models.ForeignKey(CameraConfiguration, on_delete=models.SET_NULL, null=True, blank=True, help_text="Camera attached to this class")
+    cameras = models.ManyToManyField(CameraConfiguration, blank=True, related_name="assigned_classes", help_text="Cameras attached to this class")
 
     def __str__(self):
         return f"{self.teacher.name} - {self.course.name} ({self.department.name} - {self.semester.name})"

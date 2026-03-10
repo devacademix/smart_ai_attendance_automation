@@ -23,15 +23,20 @@
         </div>
 
         <nav class="saas-sidebar-nav">
-            <a href="{% url 'home' %}" class="saas-nav-item">
-                <i class="fas fa-home"></i> Home
+
+            {% if not user.is_authenticated %}
+            <!-- Unauthenticated: show minimal nav -->
+            <a href="{% url 'login' %}" class="saas-nav-item">
+                <i class="fas fa-sign-in-alt"></i> Login
             </a>
 
-            {% if user.is_authenticated %}
-            <div
-                style="font-size: 0.75rem; font-weight: 700; color: var(--text-tertiary); text-transform: uppercase; margin: var(--space-4) var(--space-3) var(--space-2); letter-spacing: 0.05em;">
-                Management
-            </div>
+            {% elif user.is_staff or user.is_superuser %}
+            <!-- ── ADMIN / STAFF NAV ──────────────────────────────── -->
+            <a href="{% url 'admin_dashboard' %}" class="saas-nav-item">
+                <i class="fas fa-home"></i> Dashboard
+            </a>
+
+            <div style="font-size:0.72rem;font-weight:700;color:var(--text-tertiary);text-transform:uppercase;margin:var(--space-4) var(--space-3) var(--space-2);letter-spacing:0.05em;">Management</div>
             <a href="{% url 'register_student' %}" class="saas-nav-item">
                 <i class="fas fa-user-plus"></i> Register Student
             </a>
@@ -48,10 +53,7 @@
                 <i class="fas fa-book-open"></i> Manage Course
             </a>
 
-            <div
-                style="font-size: 0.75rem; font-weight: 700; color: var(--text-tertiary); text-transform: uppercase; margin: var(--space-4) var(--space-3) var(--space-2); letter-spacing: 0.05em;">
-                Configuration
-            </div>
+            <div style="font-size:0.72rem;font-weight:700;color:var(--text-tertiary);text-transform:uppercase;margin:var(--space-4) var(--space-3) var(--space-2);letter-spacing:0.05em;">Configuration</div>
             <a href="{% url 'session_list' %}" class="saas-nav-item">
                 <i class="fas fa-calendar"></i> Academic Sessions
             </a>
@@ -65,10 +67,7 @@
                 <i class="fas fa-camera"></i> Cameras
             </a>
 
-            <div
-                style="font-size: 0.75rem; font-weight: 700; color: var(--text-tertiary); text-transform: uppercase; margin: var(--space-4) var(--space-3) var(--space-2); letter-spacing: 0.05em;">
-                Operations
-            </div>
+            <div style="font-size:0.72rem;font-weight:700;color:var(--text-tertiary);text-transform:uppercase;margin:var(--space-4) var(--space-3) var(--space-2);letter-spacing:0.05em;">Operations</div>
             <a href="{% url 'student_list_with_fees' %}" class="saas-nav-item">
                 <i class="fas fa-money-bill-wave"></i> Fee Management
             </a>
@@ -85,10 +84,7 @@
                 <i class="fas fa-calendar-check"></i> Attendance Details
             </a>
 
-            <div
-                style="font-size: 0.75rem; font-weight: 700; color: var(--text-tertiary); text-transform: uppercase; margin: var(--space-4) var(--space-3) var(--space-2); letter-spacing: 0.05em;">
-                System Policy
-            </div>
+            <div style="font-size:0.72rem;font-weight:700;color:var(--text-tertiary);text-transform:uppercase;margin:var(--space-4) var(--space-3) var(--space-2);letter-spacing:0.05em;">System Policy</div>
             <a href="{% url 'late_checkin_policy_list' %}" class="saas-nav-item">
                 <i class="fas fa-clock"></i> Check-In Policy
             </a>
@@ -101,7 +97,29 @@
             <a href="{% url 'view_email_configs' %}" class="saas-nav-item">
                 <i class="fas fa-envelope"></i> Email Settings
             </a>
+
+            {% else %}
+            <!-- ── STUDENT NAV ──────────────────────────────────────── -->
+            <a href="{% url 'student_dashboard' %}" class="saas-nav-item">
+                <i class="fas fa-home"></i> Dashboard
+            </a>
+            <a href="{% url 'student_attendance' %}" class="saas-nav-item">
+                <i class="fas fa-user-check"></i> Attendance
+            </a>
+            <a href="{% url 'course_list' %}" class="saas-nav-item">
+                <i class="fas fa-book"></i> Courses
+            </a>
+            <a href="{% url 'student_fee_detail' %}" class="saas-nav-item">
+                <i class="fas fa-money-bill-wave"></i> Fee Detail
+            </a>
+            <a href="{% url 'Student_leave_list' %}" class="saas-nav-item">
+                <i class="fas fa-clipboard-list"></i> My Leaves
+            </a>
+            <a href="{% url 'apply_leave' %}" class="saas-nav-item">
+                <i class="fas fa-paper-plane"></i> Apply Leave
+            </a>
             {% endif %}
+
         </nav>
     </aside>
 
