@@ -1,4 +1,5 @@
 import os
+from .permissions import admin_required, staff_required, student_required  # RBAC decorators
 import cv2
 import numpy as np
 import torch
@@ -23,6 +24,7 @@ from django.contrib.auth import authenticate, login
 from django.contrib import messages
 from datetime import datetime, timedelta
 from django.utils import timezone
+from django.db import transaction
 from .models import Student, Attendance,CameraConfiguration,EmailConfig,Settings
 import json
 from django.http import JsonResponse
@@ -429,14 +431,34 @@ def register_student(request):
                 messages.error(request, 'Roll number already exists. Please use a different roll number.')
                 return render(request, 'register_student.html')
 
-            # Process the uploaded image to extract face embedding
-            image_array = np.frombuffer(image_file.read(), np.uint8)
-            image = cv2.imdecode(image_array, cv2.IMREAD_COLOR)
-            image_rgb = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
-            face_embedding = detect_and_encode_uploaded_image_for_register(image_rgb)
+            captured_images = request.POST.getlist('captured_images[]')
+            
+            face_embedding = None
+            if captured_images:
+                import base64
+                embeddings = []
+                for b64_img in captured_images:
+                    img_data = b64_img.split(',')[1] if ',' in b64_img else b64_img
+                    img_bytes = base64.b64decode(img_data)
+                    np_img = np.frombuffer(img_bytes, np.uint8)
+                    image = cv2.imdecode(np_img, cv2.IMREAD_COLOR)
+                    image_rgb = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+                    emb = detect_and_encode_uploaded_image_for_register(image_rgb)
+                    if emb is not None:
+                        embeddings.append(emb)
+                
+                if embeddings:
+                    # Average the embeddings for better accuracy
+                    face_embedding = np.mean(embeddings, axis=0)
+            elif image_file:
+                # Process the uploaded image to extract face embedding
+                image_array = np.frombuffer(image_file.read(), np.uint8)
+                image = cv2.imdecode(image_array, cv2.IMREAD_COLOR)
+                image_rgb = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+                face_embedding = detect_and_encode_uploaded_image_for_register(image_rgb)
 
             if face_embedding is None:
-                messages.error(request, 'No face detected in the uploaded image. Please upload a clear face image.')
+                messages.error(request, 'No face detected in the provided image(s). Please try again with clear face images.')
                 return render(request, 'register_student.html')
 
             # Create the user
@@ -621,6 +643,17 @@ def student_delete(request, pk):
 ########################################################################
 
 def user_login(request):
+    # Already logged in? Send to the right place.
+    if request.user.is_authenticated:
+        if request.user.is_staff or request.user.is_superuser:
+            return redirect('admin_dashboard')
+        try:
+            Teacher.objects.get(user=request.user)
+            return redirect('teacher_dashboard')
+        except Teacher.DoesNotExist:
+            pass
+        return redirect('student_dashboard')
+
     if request.method == 'POST':
         username = request.POST.get('username')
         password = request.POST.get('password')
@@ -667,24 +700,36 @@ def user_logout(request):
 
 @staff_member_required
 def send_attendance_notifications(request):
+    from django.core.mail import get_connection, send_mail
+    from smtplib import SMTPException
+    
     # Fetch email configuration from the database
-    email_config = EmailConfig.objects.first()  # Get the first email configuration or handle multiple configurations
+    email_config = EmailConfig.objects.first()
 
     if email_config is None:
         messages.error(request, "No email configuration found!")
         return render(request, 'notification_sent.html')
 
-    # Set up the email backend dynamically based on the configuration
-    settings.EMAIL_HOST = email_config.email_host
-    settings.EMAIL_PORT = email_config.email_port
-    settings.EMAIL_USE_TLS = email_config.email_use_tls
-    settings.EMAIL_HOST_USER = email_config.email_host_user
-    settings.EMAIL_HOST_PASSWORD = email_config.email_host_password
+    # Create a dynamic connection backend to avoid global settings mutation issues
+    try:
+        connection = get_connection(
+            host=email_config.email_host,
+            port=email_config.email_port,
+            username=email_config.email_host_user,
+            password=email_config.email_host_password,
+            use_tls=email_config.email_use_tls
+        )
+    except Exception as e:
+        messages.error(request, f"Failed to initialize email connection: {e}")
+        return render(request, 'notification_sent.html')
 
     # Filter late students who haven't been notified
     late_attendance_records = Attendance.objects.filter(is_late=True, email_sent=False)
     # Filter absent students who haven't been notified
     absent_students = Attendance.objects.filter(status='Absent', email_sent=False)
+
+    success_count = 0
+    error_count = 0
 
     # Process late students
     for record in late_attendance_records:
@@ -693,25 +738,27 @@ def send_attendance_notifications(request):
 
         # Render the email content from the HTML template for late students
         html_message = render_to_string(
-            'email_templates/late_attendance_email.html',  # Path to the template
-            {'student': student, 'record': record}  # Context to be passed into the template
+            'email_templates/late_attendance_email.html',
+            {'student': student, 'record': record}
         )
 
-        recipient_email = student.email
-
-        # Send the email with HTML content
-        send_mail(
-            subject,
-            "This is an HTML email. Please enable HTML content to view it.",
-            settings.EMAIL_HOST_USER,
-            [recipient_email],
-            fail_silently=False,
-            html_message=html_message
-        )
-
-        # Mark email as sent to avoid resending
-        record.email_sent = True
-        record.save()
+        try:
+            send_mail(
+                subject,
+                "This is an HTML email. Please enable HTML content to view it.",
+                email_config.email_host_user,
+                [student.email],
+                fail_silently=False,
+                html_message=html_message,
+                connection=connection
+            )
+            # Mark email as sent to avoid resending
+            record.email_sent = True
+            record.save()
+            success_count += 1
+        except Exception as e:
+            error_count += 1
+            messages.error(request, f"Failed to send email to {student.email}: {e}")
 
     # Process absent students
     for record in absent_students:
@@ -720,36 +767,37 @@ def send_attendance_notifications(request):
 
         # Render the email content from the HTML template for absent students
         html_message = render_to_string(
-            'email_templates/absent_attendance_email.html',  # Path to the new template
-            {'student': student, 'record': record}  # Context to be passed into the template
+            'email_templates/absent_attendance_email.html',
+            {'student': student, 'record': record}
         )
 
-        # Send the email notification for absent students
-        send_mail(
-            subject,
-            "This is an HTML email. Please enable HTML content to view it.",
-            settings.EMAIL_HOST_USER,
-            [student.email],
-            fail_silently=False,
-            html_message=html_message
-        )
-
-        # After sending the email, update the `email_sent` field to True
-        record.email_sent = True
-        record.save()
-
-    # Combine late and absent students for the response
-    all_notified_students = late_attendance_records | absent_students
+        try:
+            send_mail(
+                subject,
+                "This is an HTML email. Please enable HTML content to view it.",
+                email_config.email_host_user,
+                [student.email],
+                fail_silently=False,
+                html_message=html_message,
+                connection=connection
+            )
+            record.email_sent = True
+            record.save()
+            success_count += 1
+        except Exception as e:
+            error_count += 1
+            messages.error(request, f"Failed to send email to {student.email}: {e}")
 
     # Fetch students who already received the email (email_sent=True)
-    already_notified_students = Attendance.objects.filter(email_sent=True)
+    already_notified_students = Attendance.objects.filter(email_sent=True).order_by('-date')
 
-    # Display success message
-    messages.success(request, "Attendance notifications have been sent successfully!")
+    if success_count > 0:
+        messages.success(request, f"Successfully sent {success_count} attendance notifications!")
+    if success_count == 0 and error_count == 0:
+        messages.info(request, "No new unsent notifications pending.")
 
-    # Return a response with a template that displays the notified students
     return render(request, 'notification_sent.html', {
-        'notified_students': already_notified_students  # Show only those who have been notified
+        'notified_students': already_notified_students
     })
 
 
@@ -1773,13 +1821,13 @@ def teacher_mark_attendance(request, class_id):
 
     assigned_class = get_object_or_404(AssignedClass, id=class_id, teacher=teacher)
     
-    camera = assigned_class.camera
+    cameras = assigned_class.cameras.all()
     course = assigned_class.course
 
     return render(request, 'teacher/teacher_mark_attendance.html', {
         'teacher': teacher,
         'assigned_class': assigned_class,
-        'camera': camera,
+        'cameras': cameras,
         'course': course
     })
 
@@ -1791,7 +1839,7 @@ def start_teacher_camera(request, class_id):
         return redirect('login')
 
     assigned_class = get_object_or_404(AssignedClass, id=class_id, teacher=teacher)
-    cam_config = assigned_class.camera
+    cam_configs = assigned_class.cameras.all()
     
     # Filter students that match course, department, semester
     students_in_class = Student.objects.filter(
@@ -1800,86 +1848,159 @@ def start_teacher_camera(request, class_id):
         semester=assigned_class.semester
     )
     
-    cap = None
-    window_name = f'Teacher Camera - {cam_config.location}'
-    try:
-        if cam_config.camera_source.isdigit():
-            cap = cv2.VideoCapture(int(cam_config.camera_source))
-        else:
-            cap = cv2.VideoCapture(cam_config.camera_source)
+    stop_events = []
+    camera_threads = []
+    camera_windows = []
+    error_messages = []
 
-        if not cap.isOpened():
-            messages.error(request, "Unable to access the assigned camera.")
-            return redirect('teacher_mark_attendance', class_id=class_id)
+    def process_camera(cam_config, stop_event):
+        cap = None
+        window_created = False
+        try:
+            if cam_config.camera_source.isdigit():
+                cap = cv2.VideoCapture(int(cam_config.camera_source))
+            else:
+                cap = cv2.VideoCapture(cam_config.camera_source)
 
-        threshold = cam_config.threshold
-        pygame.mixer.init()
-        success_sound = pygame.mixer.Sound('static/success.wav')
-        
-        cv2.namedWindow(window_name)
+            if not cap.isOpened():
+                raise Exception(f"Unable to access camera {cam_config.name}.")
 
-        while True:
-            ret, frame = cap.read()
-            if not ret:
-                break
-            
-            frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-            test_face_encodings = detect_and_encode(frame_rgb)
-            
-            if test_face_encodings:
-                known_face_encodings, known_face_names = encode_uploaded_images()
-                for test_face_encoding in test_face_encodings:
-                    distances = [np.linalg.norm(test_face_encoding - known_face_encoding) for known_face_encoding in known_face_encodings]
+            threshold = cam_config.threshold
+            pygame.mixer.init()
+            try:
+                success_sound = pygame.mixer.Sound('static/success.wav')
+            except Exception:
+                success_sound = None
+
+            window_name = f'Teacher Camera - {cam_config.location}'
+            camera_windows.append(window_name)
+
+            known_face_encodings, known_face_names = encode_uploaded_images()
+
+            while not stop_event.is_set():
+                ret, frame = cap.read()
+                if not ret:
+                    break
+                
+                frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+                
+                with torch.no_grad():
+                    boxes, _ = mtcnn.detect(frame_rgb)
                     
-                    if not distances:
-                        continue
+                if boxes is not None and known_face_encodings:
+                    for box in boxes:
+                        pt1 = (int(box[0]), int(box[1]))
+                        pt2 = (int(box[2]), int(box[3]))
+                        cv2.rectangle(frame, pt1, pt2, (255, 0, 0), 2)
                         
-                    min_distance_idx = np.argmin(distances)
-                    min_distance = distances[min_distance_idx]
-                    
-                    if min_distance <= threshold:
-                        name = known_face_names[min_distance_idx]
-                        if name != "Unknown":
-                            # Verify if the student belongs to this class
-                            student = students_in_class.filter(name=name).first()
+                        face = frame_rgb[int(box[1]):int(box[3]), int(box[0]):int(box[2])]
+                        if face.size == 0:
+                            continue
+                        face = cv2.resize(face, (160, 160))
+                        face = np.transpose(face, (2, 0, 1)).astype(np.float32) / 255.0
+                        face_tensor = torch.tensor(face).unsqueeze(0)
+                        
+                        with torch.no_grad():
+                            test_face_encoding = resnet(face_tensor).detach().numpy().flatten()
+                        
+                        distances = [np.linalg.norm(test_face_encoding - known_face_encoding) for known_face_encoding in known_face_encodings]
+                        
+                        if not distances:
+                            continue
                             
-                            if student:
-                                # Process attendance
-                                with transaction.atomic():
-                                    global_settings = Settings.objects.first()
-                                    check_out_threshold_seconds = global_settings.check_out_time_threshold if global_settings else 28800
-                                    
-                                    # Modified Attendance object creation - include the course
-                                    attendance, created = Attendance.objects.get_or_create(
-                                        student=student, date=now().date(), course=assigned_class.course
-                                    )
+                        min_distance_idx = np.argmin(distances)
+                        min_distance = distances[min_distance_idx]
+                        
+                        text_y = int(box[3]) + 20
+                        text_x = int(box[0])
+                        
+                        if min_distance <= threshold:
+                            name = known_face_names[min_distance_idx]
+                            if name != "Unknown":
+                                student = students_in_class.filter(name=name).first()
+                                
+                                if student:
+                                    with transaction.atomic():
+                                        global_settings = Settings.objects.first()
+                                        check_out_threshold_seconds = global_settings.check_out_time_threshold if global_settings else 28800
+                                        
+                                        attendance, created = Attendance.objects.get_or_create(
+                                            student=student, date=now().date(), course=assigned_class.course
+                                        )
 
-                                    if attendance.check_in_time is None:
-                                        attendance.mark_checked_in()
-                                        success_sound.play()
-                                        cv2.putText(frame, f"{name}, checked in.", (50, 50), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2, cv2.LINE_AA)
-                                    elif attendance.check_out_time is None:
-                                        if now() >= attendance.check_in_time + timedelta(seconds=check_out_threshold_seconds):
-                                            attendance.mark_checked_out()
-                                            success_sound.play()
-                                            cv2.putText(frame, f"{name}, checked out.", (50, 50), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2, cv2.LINE_AA)
+                                        if attendance.check_in_time is None:
+                                            attendance.mark_checked_in()
+                                            if success_sound:
+                                                success_sound.play()
+                                            cv2.putText(frame, f"{name}, checked in.", (text_x, text_y), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 255, 0), 2, cv2.LINE_AA)
+                                        elif attendance.check_out_time is None:
+                                            if now() >= attendance.check_in_time + timedelta(seconds=check_out_threshold_seconds):
+                                                attendance.mark_checked_out()
+                                                if success_sound:
+                                                    success_sound.play()
+                                                cv2.putText(frame, f"{name}, checked out.", (text_x, text_y), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 255, 0), 2, cv2.LINE_AA)
+                                            else:
+                                                cv2.putText(frame, f"{name}, already checked in.", (text_x, text_y), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 0, 255), 2, cv2.LINE_AA)
                                         else:
-                                            cv2.putText(frame, f"{name}, already checked in.", (50, 50), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2, cv2.LINE_AA)
-                                    else:
-                                        cv2.putText(frame, f"{name}, already checked out.", (50, 50), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2, cv2.LINE_AA)
+                                            cv2.putText(frame, f"{name}, already checked out.", (text_x, text_y), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 0, 255), 2, cv2.LINE_AA)
+                                else:
+                                    cv2.putText(frame, f"{name} (Not in Class)", (text_x, text_y), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 165, 255), 2, cv2.LINE_AA)
+                        else:
+                            cv2.putText(frame, "Unknown", (text_x, text_y), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 0, 255), 2, cv2.LINE_AA)
 
-            cv2.imshow(window_name, frame)
-            if cv2.waitKey(1) & 0xFF == ord('q'):
-                break
+                if not window_created:
+                    cv2.namedWindow(window_name)
+                    window_created = True
+                cv2.imshow(window_name, frame)
+                if cv2.waitKey(1) & 0xFF == ord('q'):
+                    stop_event.set()
+                    break
+
+        except Exception as e:
+            error_messages.append(str(e))
+        finally:
+            if cap is not None:
+                cap.release()
+            if window_created:
+                try:
+                    cv2.destroyWindow(window_name)
+                except Exception:
+                    pass
+
+    try:
+        if not cam_configs.exists():
+            raise Exception("No cameras assigned to this class.")
+
+        for cam_config in cam_configs:
+            stop_event = threading.Event()
+            stop_events.append(stop_event)
+            thread = threading.Thread(target=process_camera, args=(cam_config, stop_event))
+            camera_threads.append(thread)
+            thread.start()
+
+        import time
+        while any(thread.is_alive() for thread in camera_threads):
+            time.sleep(1)
 
     except Exception as e:
-        messages.error(request, f"Camera error: {str(e)}")
+        error_messages.append(str(e))
     finally:
-        if cap is not None:
-            cap.release()
-        cv2.destroyWindow(window_name)
+        for stop_event in stop_events:
+            stop_event.set()
+            
+        for window in camera_windows:
+            try:
+                if cv2.getWindowProperty(window, cv2.WND_PROP_VISIBLE) >= 1:
+                    cv2.destroyWindow(window)
+            except Exception:
+                pass
 
-    messages.success(request, "Camera attendance session ended.")
+    if error_messages:
+        for err in error_messages:
+            messages.error(request, f"Camera error: {err}")
+    else:
+        messages.success(request, "Camera attendance session ended.")
+        
     return redirect('teacher_mark_attendance', class_id=class_id)
 
 # Teacher CRUD Views
@@ -2020,19 +2141,20 @@ def assigned_class_create(request):
         course_id = request.POST.get('course_id')
         department_id = request.POST.get('department_id')
         semester_id = request.POST.get('semester_id')
-        camera_id = request.POST.get('camera_id')
+        camera_ids = request.POST.getlist('camera_ids')
 
         teacher = get_object_or_404(Teacher, id=teacher_id) if teacher_id else None
         course = get_object_or_404(Course, id=course_id) if course_id else None
         department = get_object_or_404(Department, id=department_id) if department_id else None
         semester = get_object_or_404(Semester, id=semester_id) if semester_id else None
-        camera = get_object_or_404(CameraConfiguration, id=camera_id) if camera_id else None
 
         if teacher and course and department and semester:
-            AssignedClass.objects.create(
+            assigned_class = AssignedClass.objects.create(
                 teacher=teacher, course=course, department=department, 
-                semester=semester, camera=camera
+                semester=semester
             )
+            if camera_ids:
+                assigned_class.cameras.set(CameraConfiguration.objects.filter(id__in=camera_ids))
             return redirect('assigned_class_list')
             
     teachers = Teacher.objects.all()
@@ -2056,15 +2178,19 @@ def assigned_class_update(request, pk):
         course_id = request.POST.get('course_id')
         department_id = request.POST.get('department_id')
         semester_id = request.POST.get('semester_id')
-        camera_id = request.POST.get('camera_id')
+        camera_ids = request.POST.getlist('camera_ids')
 
         assigned_class.teacher = get_object_or_404(Teacher, id=teacher_id) if teacher_id else assigned_class.teacher
         assigned_class.course = get_object_or_404(Course, id=course_id) if course_id else assigned_class.course
         assigned_class.department = get_object_or_404(Department, id=department_id) if department_id else assigned_class.department
         assigned_class.semester = get_object_or_404(Semester, id=semester_id) if semester_id else assigned_class.semester
-        assigned_class.camera = get_object_or_404(CameraConfiguration, id=camera_id) if camera_id else None
         
         assigned_class.save()
+        if camera_ids:
+            assigned_class.cameras.set(CameraConfiguration.objects.filter(id__in=camera_ids))
+        else:
+            assigned_class.cameras.clear()
+        
         return redirect('assigned_class_list')
         
     teachers = Teacher.objects.all()
@@ -2082,9 +2208,28 @@ def assigned_class_update(request, pk):
         'cameras': cameras
     })
 
+@staff_required
 def assigned_class_delete(request, pk):
     assigned_class = get_object_or_404(AssignedClass, pk=pk)
     if request.method == "POST":
         assigned_class.delete()
         return redirect('assigned_class_list')
     return render(request, 'assigned_class_confirm_delete.html', {'assigned_class': assigned_class})
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Multi-Camera Monitor  (staff only) – opens an OpenCV window with all feeds
+# ─────────────────────────────────────────────────────────────────────────────
+
+@staff_required
+def monitor_cameras(request):
+    """
+    Launches the multi-camera monitoring window.
+    Blocks until the user presses  Q  inside the OpenCV window,
+    then redirects back to the admin dashboard.
+    URL: /monitor-cameras/
+    """
+    from .multi_camera import launch_multi_camera_monitor
+    launch_multi_camera_monitor()   # reads camera list from CameraConfiguration DB table
+    return redirect('admin_dashboard')
+

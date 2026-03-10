@@ -1,305 +1,432 @@
-<!DOCTYPE html>
-<html lang="en">
+{% extends 'base.html' %}
+{% load static %}
 
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Student Registration</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" rel="stylesheet">
-    <link href="https://cdn.jsdelivr.net/npm/select2@4.0.13/dist/css/select2.min.css" rel="stylesheet">
-    <style>
-        body {
-            background-color: #f8f9fa;
-            font-family: 'Arial', sans-serif;
-            color: #343a40;
-        }
+{% block title %}Register Student{% endblock %}
 
-        .container {
-            margin-top: 50px;
-            max-width: 900px;
-        }
+{% block extra_css %}
+<!-- Include Select2 CSS for better dropdowns -->
+<link href="https://cdn.jsdelivr.net/npm/select2@4.0.13/dist/css/select2.min.css" rel="stylesheet">
+<style>
+    /* Select2 integration with SaaS Theme */
+    .select2-container--default .select2-selection--single,
+    .select2-container--default .select2-selection--multiple {
+        border: 1px solid var(--border-color);
+        border-radius: var(--radius-md);
+        min-height: 40px;
+        padding-left: 12px;
+        padding-top: 4px;
+        font-family: 'Inter', sans-serif;
+        font-size: 0.875rem;
+    }
 
-        .card {
-            border: none;
-            border-radius: 1.5rem;
-            box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1);
-            background-color: #fff;
-            padding: 25px;
-        }
+    .select2-container--default .select2-selection--single:focus,
+    .select2-container--default.select2-container--focus .select2-selection--multiple {
+        border-color: var(--primary-color);
+        box-shadow: 0 0 0 3px var(--primary-light);
+        outline: none;
+    }
 
-        h2 {
-            margin-bottom: 30px;
-            font-size: 2.5rem;
-            font-weight: bold;
-            color: #28a745;
-            text-transform: uppercase;
-        }
+    .select2-container--default .select2-results__option--highlighted[aria-selected] {
+        background-color: var(--primary-color);
+    }
+</style>
+{% endblock %}
 
-        .image-preview {
-            display: none;
-            margin-top: 15px;
-            border-radius: 1rem;
-            border: 1px solid #ced4da;
-            max-width: 100%;
-            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
-        }
+{% block content %}
+<div class="saas-page-header">
+    <div>
+        <h1 class="saas-page-title">Register New Student</h1>
+        <p class="saas-page-subtitle">Onboard a new student into the system and capture their face data.</p>
+    </div>
+</div>
 
-        .btn-success {
-            background-color: #28a745;
-            border: none;
-            padding: 12px 30px;
-            border-radius: 25px;
-            transition: background-color 0.3s, transform 0.3s;
-        }
+{% if messages %}
+<div style="margin-bottom: var(--space-5);">
+    {% for message in messages %}
+    <div style="padding: var(--space-3) var(--space-4); border-radius: var(--radius-md); margin-bottom: var(--space-2); 
+        {% if message.tags == 'success' %}background-color: #ECFDF5; color: #065F46; border: 1px solid #A7F3D0;
+        {% elif message.tags == 'error' %}background-color: #FEF2F2; color: #991B1B; border: 1px solid #FECACA;
+        {% else %}background-color: #F8FAFC; color: #334155; border: 1px solid #E2E8F0;{% endif %}">
+        <i class="fas {% if message.tags == 'success' %}fa-check-circle{% else %}fa-exclamation-circle{% endif %}"
+            style="margin-right: var(--space-2);"></i>
+        {{ message }}
+    </div>
+    {% endfor %}
+</div>
+{% endif %}
 
-        .btn-success:hover {
-            background-color: #218838;
-            transform: scale(1.05);
-        }
-
-        .form-group label {
-            font-weight: bold;
-            font-size: 1.1rem;
-        }
-
-        .form-group select {
-            height: 40px;
-        }
-
-        .form-group input,
-        .form-group select {
-            border-radius: 10px;
-            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
-        }
-
-        .form-group select:focus,
-        .form-group input:focus {
-            border-color: #28a745;
-        }
-
-        .back-button {
-            margin-top: 20px;
-            text-align: center;
-            font-weight: bold;
-            color: #28a745;
-            cursor: pointer;
-            text-decoration: none;
-            font-size: 1.1rem;
-        }
-
-        .back-button:hover {
-            color: #218838;
-            text-decoration: underline;
-        }
-
-        .alert {
-            padding: 15px;
-            margin-bottom: 20px;
-            border-radius: 5px;
-        }
-
-        .alert.success {
-            color: #155724;
-            background-color: #d4edda;
-            border-color: #c3e6cb;
-        }
-
-        .alert.error {
-            color: #721c24;
-            background-color: #f8d7da;
-            border-color: #f5c6cb;
-        }
-
-        /* Responsive Styles */
-        @media (max-width: 767px) {
-            .container {
-                margin-top: 30px;
-                padding: 15px;
-            }
-
-            h2 {
-                font-size: 1.8rem;
-            }
-
-            .form-group {
-                margin-bottom: 15px;
-            }
-
-            .btn-success {
-                width: 100%;
-                padding: 12px;
-            }
-        }
-
-        @media (max-width: 575px) {
-            .container {
-                margin-top: 20px;
-                padding: 10px;
-            }
-
-            h2 {
-                font-size: 1.3rem;
-            }
-
-            .form-group {
-                margin-bottom: 10px;
-            }
-
-            .btn-success {
-                padding: 10px;
-            }
-        }
-
-        .image-upload-message {
-            font-size: 1.1rem;
-            color: #d9534f;
-            font-weight: bold;
-            margin-top: 10px;
-        }
-    </style>
-</head>
-
-<body>
-    <div class="container">
-        <div class="card shadow">
-            <div class="card-body text-center">
-                <h2 class="card-title">Student Registration</h2>
-                {% if messages %}
-                    <div>
-                        {% for message in messages %}
-                            <div class="alert {{ message.tags }}">
-                                {{ message }}
-                            </div>
-                        {% endfor %}
-                    </div>
-                {% endif %}
-
-                <form id="registrationForm" method="post" enctype="multipart/form-data">
-                    {% csrf_token %}
-                    <div class="row">
-                        <div class="col-md-6 form-group">
-                            <label for="username">Username:</label>
-                            <input type="text" class="form-control" id="username" name="username" required>
-                        </div>
-                        <div class="col-md-6 form-group">
-                            <label for="password">Password:</label>
-                            <input type="password" class="form-control" id="password" name="password" required>
-                        </div>
-                    </div>
-                    <div class="row">
-                        <div class="col-md-6 form-group">
-                            <label for="name">Name:</label>
-                            <input type="text" class="form-control" id="name" name="name" required>
-                        </div>
-                        <div class="col-md-6 form-group">
-                            <label for="email">Email:</label>
-                            <input type="email" class="form-control" id="email" name="email" required>
-                        </div>
-                    </div>
-                    <div class="row">
-                        <div class="col-md-6 form-group">
-                            <label for="phone_number">Phone Number:</label>
-                            <input type="text" class="form-control" id="phone_number" name="phone_number" required>
-                        </div>
-                    </div>
-                    <div class="row">
-                        <div class="col-md-6 form-group">
-                            <label for="roll_no">Roll Number:</label>
-                            <input type="text" class="form-control" id="roll_no" name="roll_no" required>
-                        </div>
-                        <div class="col-md-6 form-group">
-                            <label for="semester">Semester:</label>
-                            <select class="form-control select2" id="semester" name="semester" required>
-                                <option value="">Select Semester</option>
-                                {% for semester in semesters %}
-                                    <option value="{{ semester.id }}">{{ semester.name }}</option>
-                                {% endfor %}
-                            </select>
-                        </div>
-                    </div>
-
-                    <div class="row">
-                        <div class="col-md-6 form-group">
-                            <label for="session">Session:</label>
-                            <select class="form-control select2" id="session" name="session" required>
-                                <option value="">Select Session</option>
-                                {% for session in sessions %}
-                                    <option value="{{ session.id }}">{{ session.name }}</option>
-                                {% endfor %}
-                            </select>
-                        </div>
-                        <div class="col-md-6 form-group">
-                            <label for="department">Department:</label>
-                            <select class="form-control select2" id="department" name="department" required>
-                                <option value="">Select Department</option>
-                                {% for department in departments %}
-                                    <option value="{{ department.id }}">{{ department.name }}</option>
-                                {% endfor %}
-                            </select>
-                        </div>
-                    </div>
-                    <div class="row">
-                        <div class="col-md-6 form-group">
-                            <label for="courses">Courses:</label>
-                            <select class="form-control select2" id="courses" name="courses" multiple required>
-                                <option value="">Select Courses</option>
-                                {% for course in courses %}
-                                    <option value="{{ course.id }}">{{ course.name }}</option>
-                                {% endfor %}
-                            </select>
-                        </div>
-                        <div class="col-md-6 form-group">
-                            <label for="address">Address:</label>
-                            <input type="text" class="form-control" id="address" name="address" required>
-                        </div>
-                    </div>
-                    <div class="row">
-                        <div class="col-md-6 form-group">
-                            <label for="date_of_birth">Date of Birth:</label>
-                            <input type="date" class="form-control" id="date_of_birth" name="date_of_birth" required>
-                        </div>
-                        <div class="col-md-6 form-group">
-                            <label for="joining_date">Joining Date:</label>
-                            <input type="date" class="form-control" id="joining_date" name="joining_date" required>
-                        </div>
-                    </div>
-                    <div class="row">
-                        <div class="col-md-6 form-group">
-                            <label for="mother_name">Mother's Name:</label>
-                            <input type="text" class="form-control" id="mother_name" name="mother_name" required>
-                        </div>
-                        <div class="col-md-6 form-group">
-                            <label for="father_name">Father's Name:</label>
-                            <input type="text" class="form-control" id="father_name" name="father_name" required>
-                        </div>
-                    </div>
-
-                    <!-- Image upload input field -->
-                    <div class="form-group">
-                        <label for="image">Profile Image:</label>
-                        <input type="file" class="form-control" id="image" name="image" accept="image/*" required>
-                        <p class="image-upload-message">Please upload a clear image for face recognition. Ensure that your face is clearly visible.</p>
-                    </div>
-
-                    <div class="form-group text-center">
-                        <button type="submit" class="btn btn-success" id="submitBtn">Submit Registration</button>
-                    </div>
-                    <div class="back-button" onclick="location.href='{% url 'home' %}'">
-                        <i class="fas fa-home"></i> Back to Home
-                    </div>
-                </form>
-            </div>
-        </div>
+<div class="saas-card" style="max-width: 900px;">
+    <div class="saas-card-header">
+        <h3 class="saas-card-title">Student Details</h3>
     </div>
 
-    <script src="https://cdn.jsdelivr.net/npm/jquery@3.6.0/dist/jquery.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/select2@4.0.13/dist/js/select2.min.js"></script>
-    <script>
-        $(document).ready(function() {
-            $('.select2').select2();
-        });
-    </script>
-</body>
+    <div class="saas-card-body">
+        <form id="registrationForm" method="post" enctype="multipart/form-data">
+            {% csrf_token %}
 
-</html>
+            <h4
+                style="margin: 0 0 var(--space-4) 0; color: var(--text-tertiary); font-size: 0.875rem; text-transform: uppercase;">
+                Account Information</h4>
+            <div
+                style="display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-4); margin-bottom: var(--space-6);">
+                <div class="saas-form-group">
+                    <label class="saas-label" for="username">Username <span
+                            style="color: var(--danger-color);">*</span></label>
+                    <input type="text" class="saas-input" id="username" name="username" required
+                        placeholder="Ex. jdoe23">
+                </div>
+                <div class="saas-form-group">
+                    <label class="saas-label" for="password">Password <span
+                            style="color: var(--danger-color);">*</span></label>
+                    <input type="password" class="saas-input" id="password" name="password" required
+                        placeholder="••••••••">
+                </div>
+            </div>
+
+            <h4
+                style="margin: 0 0 var(--space-4) 0; color: var(--text-tertiary); font-size: 0.875rem; text-transform: uppercase;">
+                Personal Information</h4>
+            <div
+                style="display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-4); margin-bottom: var(--space-4);">
+                <div class="saas-form-group">
+                    <label class="saas-label" for="name">Full Name <span
+                            style="color: var(--danger-color);">*</span></label>
+                    <input type="text" class="saas-input" id="name" name="name" required placeholder="John Doe">
+                </div>
+                <div class="saas-form-group">
+                    <label class="saas-label" for="email">Email Address <span
+                            style="color: var(--danger-color);">*</span></label>
+                    <input type="email" class="saas-input" id="email" name="email" required
+                        placeholder="john@example.com">
+                </div>
+                <div class="saas-form-group">
+                    <label class="saas-label" for="phone_number">Phone Number <span
+                            style="color: var(--danger-color);">*</span></label>
+                    <input type="tel" class="saas-input" id="phone_number" name="phone_number" required
+                        placeholder="+1 234 567 8900">
+                </div>
+                <div class="saas-form-group">
+                    <label class="saas-label" for="date_of_birth">Date of Birth <span
+                            style="color: var(--danger-color);">*</span></label>
+                    <input type="date" class="saas-input" id="date_of_birth" name="date_of_birth" required>
+                </div>
+            </div>
+
+            <div class="saas-form-group" style="margin-bottom: var(--space-6);">
+                <label class="saas-label" for="address">Home Address <span
+                        style="color: var(--danger-color);">*</span></label>
+                <input type="text" class="saas-input" id="address" name="address" required
+                    placeholder="123 Example Street, City, Country">
+            </div>
+
+            <h4
+                style="margin: 0 0 var(--space-4) 0; color: var(--text-tertiary); font-size: 0.875rem; text-transform: uppercase;">
+                Family Information</h4>
+            <div
+                style="display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-4); margin-bottom: var(--space-6);">
+                <div class="saas-form-group">
+                    <label class="saas-label" for="mother_name">Mother's Name <span
+                            style="color: var(--danger-color);">*</span></label>
+                    <input type="text" class="saas-input" id="mother_name" name="mother_name" required
+                        placeholder="Jane Doe">
+                </div>
+                <div class="saas-form-group">
+                    <label class="saas-label" for="father_name">Father's Name <span
+                            style="color: var(--danger-color);">*</span></label>
+                    <input type="text" class="saas-input" id="father_name" name="father_name" required
+                        placeholder="Robert Doe">
+                </div>
+            </div>
+
+            <h4
+                style="margin: 0 0 var(--space-4) 0; color: var(--text-tertiary); font-size: 0.875rem; text-transform: uppercase;">
+                Academic Details</h4>
+            <div
+                style="display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-4); margin-bottom: var(--space-4);">
+                <div class="saas-form-group">
+                    <label class="saas-label" for="roll_no">Roll Number / Student ID <span
+                            style="color: var(--danger-color);">*</span></label>
+                    <input type="text" class="saas-input" id="roll_no" name="roll_no" required placeholder="ST-10029">
+                </div>
+                <div class="saas-form-group">
+                    <label class="saas-label" for="joining_date">Joining Date <span
+                            style="color: var(--danger-color);">*</span></label>
+                    <input type="date" class="saas-input" id="joining_date" name="joining_date" required>
+                </div>
+                <div class="saas-form-group">
+                    <label class="saas-label" for="session">Session <span
+                            style="color: var(--danger-color);">*</span></label>
+                    <select class="saas-select saas-select2" id="session" name="session" required>
+                        <option value="">Select Session</option>
+                        {% for session in sessions %}
+                        <option value="{{ session.id }}">{{ session.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="saas-form-group">
+                    <label class="saas-label" for="semester">Semester <span
+                            style="color: var(--danger-color);">*</span></label>
+                    <select class="saas-select saas-select2" id="semester" name="semester" required>
+                        <option value="">Select Semester</option>
+                        {% for semester in semesters %}
+                        <option value="{{ semester.id }}">{{ semester.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="saas-form-group">
+                    <label class="saas-label" for="department">Department <span
+                            style="color: var(--danger-color);">*</span></label>
+                    <select class="saas-select saas-select2" id="department" name="department" required>
+                        <option value="">Select Department</option>
+                        {% for department in departments %}
+                        <option value="{{ department.id }}">{{ department.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="saas-form-group">
+                    <label class="saas-label" for="courses">Assigned Courses <span
+                            style="color: var(--danger-color);">*</span></label>
+                    <select class="saas-select saas-select2" id="courses" name="courses" multiple required>
+                        <option value=""></option>
+                        {% for course in courses %}
+                        <option value="{{ course.id }}">{{ course.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+
+            <div style="border-top: 1px dashed var(--border-color); margin: var(--space-5) 0 var(--space-4) 0;"></div>
+
+            <!-- Image Upload OR Camera Section -->
+            <div class="saas-form-group"
+                style="padding: var(--space-4); background: var(--bg-color); border-radius: var(--radius-md); border: 1px solid var(--border-color); text-align: center;">
+                <label class="saas-label" style="display: block; margin-bottom: var(--space-3);"><i
+                        class="fas fa-camera" style="color: var(--primary-color);"></i> Profile Image for Face
+                    Recognition <span style="color: var(--danger-color);">*</span></label>
+
+                <!-- Setup tabs -->
+                <div
+                    style="margin-bottom: var(--space-4); display: flex; justify-content: center; gap: var(--space-2);">
+                    <button type="button" class="saas-btn saas-btn-primary" id="tabUploadBtn"
+                        onclick="switchTab('upload')"><i class="fas fa-upload"></i> Upload Image</button>
+                    <button type="button" class="saas-btn saas-btn-secondary" id="tabCameraBtn"
+                        onclick="switchTab('camera')"><i class="fas fa-video"></i> Capture via Camera</button>
+                </div>
+
+                <!-- Upload Tab -->
+                <div id="uploadTab">
+                    <div style="font-size: 0.75rem; color: var(--text-secondary); margin-bottom: var(--space-3);">Please
+                        upload a clear, front-facing image (minimum 500x500px).</div>
+                    <input type="file" class="saas-input" id="image" name="image" accept="image/*" required
+                        style="max-width: 400px; margin: 0 auto; background: white;">
+                </div>
+
+                <!-- Camera Tab -->
+                <div id="cameraTab" style="display: none;">
+                    <div style="font-size: 0.75rem; color: var(--text-secondary); margin-bottom: var(--space-3);">Capture 5 images for highly accurate face recognition.</div>
+                    
+                    <div class="saas-form-group" style="text-align: left; max-width: 400px; margin: 0 auto 15px auto;">
+                        <label class="saas-label" for="cameraSelect">Select Camera</label>
+                        <select id="cameraSelect" class="saas-select" style="width: 100%;">
+                            <option value="">Default Webcam</option>
+                        </select>
+                    </div>
+
+                    <div style="position: relative; width: 100%; max-width: 400px; margin: 0 auto; border-radius: var(--radius-md); overflow: hidden; background: #000;">
+                        <video id="videoFeed" autoplay playsinline style="width: 100%; display: none;"></video>
+                        <div id="cameraPlaceholder" style="padding: 40px 0; color: #fff;">
+                            <i class="fas fa-video-slash fa-3x" style="margin-bottom: 10px; opacity: 0.5;"></i>
+                            <p>Camera is off</p>
+                        </div>
+                    </div>
+                    <div
+                        style="margin-top: var(--space-3); display: flex; justify-content: center; gap: var(--space-2);">
+                        <button type="button" class="saas-btn saas-btn-secondary" id="startCameraBtn"
+                            onclick="startCamera()"><i class="fas fa-play"></i> Start Camera</button>
+                        <button type="button" class="saas-btn saas-btn-primary" id="captureBtn"
+                            onclick="captureAndTrain()" disabled><i class="fas fa-camera"></i> Capture & Train</button>
+                    </div>
+
+                    <div id="captureProgress" style="margin-top: var(--space-3); display: none;">
+                        <progress value="0" max="5" id="progressBar" style="width: 100%; max-width: 400px;"></progress>
+                        <p id="progressText"
+                            style="font-size: 0.75rem; color: var(--primary-color); margin-top: 5px; font-weight: 600;">
+                            Capturing images...</p>
+                    </div>
+
+                    <div id="capturedImagesContainer" style="display: none;"></div>
+                </div>
+            </div>
+
+            <div style="display: flex; gap: var(--space-3); margin-top: var(--space-6); justify-content: flex-end;">
+                <a href="{% url 'student-list' %}" class="saas-btn saas-btn-secondary">Cancel</a>
+                <button type="submit" class="saas-btn saas-btn-primary"><i class="fas fa-user-plus"></i> Complete
+                    Registration</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/jquery@3.6.0/dist/jquery.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/select2@4.0.13/dist/js/select2.min.js"></script>
+<script>
+    let videoStream = null;
+    let capturedFrames = [];
+    const NUM_FRAMES = 5;
+
+    // Load available video devices
+    async function getCameras() {
+        try {
+            // Must ask permissions first to get labels
+            const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+            const devices = await navigator.mediaDevices.enumerateDevices();
+            const videoDevices = devices.filter(device => device.kind === 'videoinput');
+
+            const cameraSelect = document.getElementById('cameraSelect');
+            if (cameraSelect) {
+                // Keep the default options, but grab actual webcams
+                videoDevices.forEach((device, index) => {
+                    const option = document.createElement('option');
+                    option.value = device.deviceId;
+                    option.text = device.label || `Camera ${index + 1}`;
+                    cameraSelect.appendChild(option);
+                });
+            }
+
+            // stop the stream we opened just to get names
+            stream.getTracks().forEach(track => track.stop());
+        } catch (e) {
+            console.error("Could not load camera list", e);
+        }
+    }
+
+    function switchTab(tab) {
+        const uploadBtn = document.getElementById('tabUploadBtn');
+        const cameraBtn = document.getElementById('tabCameraBtn');
+        const uploadTab = document.getElementById('uploadTab');
+        const cameraTab = document.getElementById('cameraTab');
+        const imageInput = document.getElementById('image');
+
+        if (tab === 'upload') {
+            uploadBtn.className = 'saas-btn saas-btn-primary';
+            cameraBtn.className = 'saas-btn saas-btn-secondary';
+            uploadTab.style.display = 'block';
+            cameraTab.style.display = 'none';
+            imageInput.required = true;
+            stopCamera();
+        } else {
+            cameraBtn.className = 'saas-btn saas-btn-primary';
+            uploadBtn.className = 'saas-btn saas-btn-secondary';
+            cameraTab.style.display = 'block';
+            uploadTab.style.display = 'none';
+            imageInput.required = false; 
+            imageInput.value = ''; 
+            getCameras(); // Load the list when opening tab
+        }
+    }
+
+    async function startCamera() {
+        const video = document.getElementById('videoFeed');
+        const placeholder = document.getElementById('cameraPlaceholder');
+        const startBtn = document.getElementById('startCameraBtn');
+        const captureBtn = document.getElementById('captureBtn');
+        const cameraSelect = document.getElementById('cameraSelect');
+        
+        let constraints = { video: true };
+        
+        if (cameraSelect && cameraSelect.value) {
+            if (cameraSelect.value !== '') {
+               // Only use precise exact match for physical devices mapped from enumerateDevices
+               if(cameraSelect.value.length > 5) {
+                   constraints = { video: { deviceId: { exact: cameraSelect.value } } };
+               }
+            }
+        }
+
+        try {
+            videoStream = await navigator.mediaDevices.getUserMedia(constraints);
+            video.srcObject = videoStream;
+            video.style.display = 'block';
+            placeholder.style.display = 'none';
+            startBtn.disabled = true;
+            captureBtn.disabled = false;
+        } catch (err) {
+            alert('Could not access camera. Please allow camera permissions.');
+            console.error(err);
+        }
+    }
+
+    function stopCamera() {
+        if (videoStream) {
+            videoStream.getTracks().forEach(track => track.stop());
+            videoStream = null;
+        }
+        document.getElementById('videoFeed').style.display = 'none';
+        document.getElementById('cameraPlaceholder').style.display = 'block';
+        document.getElementById('startCameraBtn').disabled = false;
+        document.getElementById('captureBtn').disabled = true;
+    }
+
+    function captureAndTrain() {
+        const video = document.getElementById('videoFeed');
+        const captureBtn = document.getElementById('captureBtn');
+        const progressDiv = document.getElementById('captureProgress');
+        const progressBar = document.getElementById('progressBar');
+        const progressText = document.getElementById('progressText');
+        const container = document.getElementById('capturedImagesContainer');
+
+        container.innerHTML = '';
+        capturedFrames = [];
+        captureBtn.disabled = true;
+        progressDiv.style.display = 'block';
+
+        const canvas = document.createElement('canvas');
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+        const ctx = canvas.getContext('2d');
+
+        let framesCount = 0;
+
+        const captureInterval = setInterval(() => {
+            if (framesCount >= NUM_FRAMES) {
+                clearInterval(captureInterval);
+                progressText.innerText = "Training complete! Ready to register. You can now click Complete Registration.";
+                progressText.style.color = "var(--success-color)";
+                stopCamera();
+                return;
+            }
+
+            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+            const base64Image = canvas.toDataURL('image/jpeg', 0.8);
+
+            // create hidden inputs
+            const input = document.createElement('input');
+            input.type = 'hidden';
+            input.name = 'captured_images[]';
+            input.value = base64Image;
+            container.appendChild(input);
+
+            framesCount++;
+            progressBar.value = framesCount;
+
+        }, 500); // capture 1 frame every 0.5 sec to ensure user changes pose slightly
+    }
+
+    // Stop camera when leaving the page
+    window.addEventListener('beforeunload', stopCamera);
+
+    $(document).ready(function () {
+        $('.saas-select2').select2({
+            width: '100%'
+        });
+
+        // Multiple select specifically for courses
+        $('#courses').select2({
+            width: '100%',
+            placeholder: 'Select multiple courses'
+        });
+    });
+</script>
+{% endblock %}

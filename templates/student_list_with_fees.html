@@ -1,208 +1,80 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Student Fees Management</title>
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" rel="stylesheet"> <!-- Font Awesome CDN -->
-    <style>
-        /* General Reset */
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
+{% extends 'base.html' %}
 
-        body {
-            font-family: 'Roboto', sans-serif;
-            background: #f5f7fa;
-            color: #333;
-            padding: 20px;
-        }
+{% block title %}Fees Management{% endblock %}
 
-        h1 {
-            text-align: center;
-            font-size: 2.5rem;
-            color: #444;
-            margin-bottom: 20px;
-        }
-
-        .container {
-            max-width: 1200px;
-            margin: 0 auto;
-            background: #fff;
-            padding: 20px;
-            border-radius: 12px;
-            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-        }
-
-        .search-form {
-            display: flex;
-            justify-content: center;
-            margin-bottom: 20px;
-        }
-
-        .search-form input {
-            width: 50%;
-            padding: 10px;
-            font-size: 16px;
-            border: 1px solid #ddd;
-            border-radius: 8px;
-            outline: none;
-            transition: all 0.3s ease;
-        }
-
-        .search-form input:focus {
-            border-color: #007bff;
-            box-shadow: 0 0 5px rgba(0, 123, 255, 0.5);
-        }
-
-        .search-form button {
-            padding: 10px 20px;
-            font-size: 16px;
-            margin-left: 10px;
-            background-color: #007bff;
-            color: #fff;
-            border: none;
-            border-radius: 8px;
-            cursor: pointer;
-            transition: background-color 0.3s ease;
-        }
-
-        .search-form button:hover {
-            background-color: #0056b3;
-        }
-
-        .table-container {
-            overflow-x: auto; /* Enable horizontal scroll */
-        }
-
-        table {
-            width: 100%;
-            border-collapse: collapse;
-            margin-top: 20px;
-            min-width: 800px; /* Ensure table doesn't shrink too much */
-        }
-
-        table th, table td {
-            text-align: left;
-            padding: 12px;
-            border: 1px solid #ddd;
-        }
-
-        table th {
-            background-color: #007bff;
-            color: #fff;
-        }
-
-        table tr:nth-child(even) {
-            background-color: #f9f9f9;
-        }
-
-        table tr:hover {
-            background-color: #f1f1f1;
-        }
-
-        .status.paid {
-            color: #28a745;
-            font-weight: bold;
-        }
-
-        .status.unpaid {
-            color: #dc3545;
-            font-weight: bold;
-        }
-
-        .actions a {
-            text-decoration: none;
-            background-color: #17a2b8;
-            color: #fff;
-            padding: 5px 10px;
-            border-radius: 8px;
-            font-weight: bold;
-            transition: background-color 0.3s ease;
-        }
-
-        .actions a:hover {
-            background-color: #138496;
-        }
-
-        /* Footer with Back Icon */
-        .footer {
-            position: fixed;
-            left: 20px;
-            bottom: 20px;
-            z-index: 10;
-        }
-
-        .footer a {
-            text-decoration: none;
-            font-size: 24px;
-            background-color: #007bff;
-            color: #fff;
-            padding: 12px;
-            border-radius: 50%;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-            transition: all 0.3s ease;
-        }
-
-        .footer a:hover {
-            background-color: #0056b3;
-            transform: scale(1.1);
-        }
-    </style>
-</head>
-<body>
-    <h1>Student Fees Management</h1>
-    <div class="container">
-        <!-- Search Form -->
-        <div class="search-form">
-            <form method="get">
-                <input type="text" name="search" placeholder="Search by name or class" value="{{ search_query }}">
-                <button type="submit">Search</button>
-            </form>
-        </div>
-
-        <!-- Student Fees Table -->
-        <div class="table-container">
-            <table>
-                <thead>
-                    <tr>
-                        <th>Name</th>
-                        <th>Roll No</th>
-                        <th>Total Fee</th>
-                        <th>Total Payment</th>
-                        <th>Balance</th>
-                        <th>Status</th>
-                        <th>Actions</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for data in student_data %}
-                    <tr>
-                        <td>{{ data.student.name }}</td>
-                        <td>{{ data.student.roll_no }}</td>
-                        <td>{{ data.total_fee }}</td>
-                        <td>{{ data.total_payment }}</td>
-                        <td>{{ data.balance }}</td>
-                        <td class="status {% if data.fee_status == 'Paid' %}paid{% else %}unpaid{% endif %}">
-                            {{ data.fee_status }}
-                        </td>
-                        <td class="actions">
-                            <a href="{% url 'student_fee_details' data.student.id %}">View Details</a>
-                        </td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        </div>
+{% block content %}
+<div class="saas-page-header">
+    <div>
+        <h1 class="saas-page-title">Fees Management</h1>
+        <p class="saas-page-subtitle">Track student payments, outstanding balances, and financial status.</p>
     </div>
+</div>
 
-    <!-- Back Button Icon -->
-    <div class="footer">
-        <a href="{% url 'home' %}" title="Back">
-            <i class="fas fa-arrow-left"></i>
-        </a>
+<div class="saas-card">
+    <div class="saas-card-header" style="justify-content: space-between;">
+        <h3 class="saas-card-title">Student Fee Records</h3>
+        
+        <form method="get" class="saas-header-search" style="width: auto; background: var(--bg-color); border: 1px solid var(--border-color); padding: 0;">
+            <div style="display: flex; align-items: center; padding: var(--space-2) var(--space-3);">
+                <i class="fas fa-search" style="color: var(--text-tertiary);"></i>
+                <input type="text" name="search" placeholder="Search by name or ID..." value="{{ search_query }}" style="width: 250px; background: transparent; border: none; margin-left: var(--space-2); outline: none;">
+                <button type="submit" class="saas-btn saas-btn-primary" style="padding: 4px 12px; font-size: 0.75rem;">Search</button>
+            </div>
+        </form>
     </div>
-</body>
-</html>
+    
+    <div class="saas-table-container" style="border: none; box-shadow: none; border-radius: 0;">
+        <table class="saas-table">
+            <thead>
+                <tr>
+                    <th>Student Info</th>
+                    <th>Total Fee</th>
+                    <th>Total Payments</th>
+                    <th>Outstanding Balance</th>
+                    <th>Status</th>
+                    <th style="text-align: right;">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for data in student_data %}
+                <tr>
+                    <td>
+                        <div style="display: flex; align-items: center; gap: var(--space-3);">
+                            <div class="saas-avatar" style="width: 36px; height: 36px; background: var(--primary-light); color: var(--primary-color);">
+                                {{ data.student.name|make_list|first|upper }}
+                            </div>
+                            <div>
+                                <span style="font-weight: 600; color: var(--text-primary); display: block;">{{ data.student.name }}</span>
+                                <span style="font-size: 0.75rem; color: var(--text-tertiary);">ID: {{ data.student.roll_no }}</span>
+                            </div>
+                        </div>
+                    </td>
+                    <td style="font-weight: 500;">$ {{ data.total_fee }}</td>
+                    <td style="color: var(--accent-color); font-weight: 500;">$ {{ data.total_payment }}</td>
+                    <td style="color: var(--danger-color); font-weight: 500;">$ {{ data.balance }}</td>
+                    <td>
+                        {% if data.fee_status == 'Paid' %}
+                            <span class="saas-badge saas-badge-success"><i class="fas fa-check-circle" style="margin-right: 4px;"></i> Paid</span>
+                        {% else %}
+                            <span class="saas-badge saas-badge-danger"><i class="fas fa-exclamation-circle" style="margin-right: 4px;"></i> Unpaid</span>
+                        {% endif %}
+                    </td>
+                    <td style="text-align: right;">
+                        <a href="{% url 'student_fee_details' data.student.id %}" class="saas-btn saas-btn-secondary" style="padding: var(--space-2) var(--space-3);">
+                            <i class="fas fa-file-invoice-dollar" style="color: var(--primary-color);"></i> Details
+                        </a>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="6" style="text-align: center; color: var(--text-tertiary); padding: var(--space-6);">
+                        <i class="fas fa-money-check-alt" style="font-size: 2rem; margin-bottom: var(--space-3); display: block;"></i>
+                        No fee records found.
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

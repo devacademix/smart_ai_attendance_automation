@@ -1,50 +1,71 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Add Course</title>
-    <!-- Bootstrap CSS -->
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <style>
-        body {
-            background-color: #f8f9fa;
-        }
-        .form-container {
-            max-width: 600px;
-            margin: 50px auto;
-            padding: 30px;
-            background: #fff;
-            border-radius: 8px;
-            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
-        }
-        .btn-back {
-            text-decoration: none;
-            color: #6c757d;
-        }
-        .btn-back:hover {
-            color: #495057;
-        }
-    </style>
-</head>
-<body>
-    <div class="container">
-        <div class="form-container">
-            <h1 class="text-center text-primary mb-4">Add Course</h1>
-            <form method="post">
-                {% csrf_token %}
-                <div class="mb-3">
-                    {{ form.as_p }}
-                </div>
-                <div class="d-flex justify-content-between">
-                    <a href="{% url 'manage_courses' %}" class="btn btn-link btn-back">&larr; Back to Course List</a>
-                    <button type="submit" class="btn btn-success">Save</button>
-                </div>
-            </form>
-        </div>
-    </div>
+{% extends 'base.html' %}
 
-    <!-- Bootstrap JS -->
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-</body>
-</html>
+{% block title %}Add Course{% endblock %}
+
+{% block content %}
+<div class="saas-page-header">
+    <div>
+        <h1 class="saas-page-title">Create New Course</h1>
+        <p class="saas-page-subtitle">Add a new academic course or subject module to the curriculum.</p>
+    </div>
+</div>
+
+<div class="saas-card" style="max-width: 600px; margin: 0 auto;">
+    <div class="saas-card-header">
+        <h3 class="saas-card-title">Course Information</h3>
+    </div>
+    
+    <div class="saas-card-body">
+        <form method="post">
+            {% csrf_token %}
+            
+            {% for field in form %}
+            <div class="saas-form-group">
+                <label class="saas-label" for="{{ field.id_for_label }}">{{ field.label }} {% if field.field.required %}<span style="color: var(--danger-color);">*</span>{% endif %}</label>
+                {{ field.errors }}
+                <!-- The field will be rendered by django, we can style it via css applied to inputs by default, but let's wrap it nicely -->
+                <div class="django-field-wrapper">
+                    {{ field }}
+                </div>
+                {% if field.help_text %}
+                <p style="font-size: 0.75rem; color: var(--text-tertiary); margin-top: 4px;">{{ field.help_text }}</p>
+                {% endif %}
+            </div>
+            {% endfor %}
+            
+            <style>
+                /* Style Django form elements automatically */
+                .django-field-wrapper input[type="text"],
+                .django-field-wrapper input[type="number"],
+                .django-field-wrapper input[type="email"],
+                .django-field-wrapper input[type="password"],
+                .django-field-wrapper textarea,
+                .django-field-wrapper select {
+                    width: 100%;
+                    padding: var(--space-2) var(--space-3);
+                    border: 1px solid var(--border-color);
+                    border-radius: var(--radius-md);
+                    font-size: 0.875rem;
+                    color: var(--text-primary);
+                    background-color: var(--bg-color);
+                    transition: all 0.2s;
+                }
+                .django-field-wrapper input:focus,
+                .django-field-wrapper textarea:focus,
+                .django-field-wrapper select:focus {
+                    outline: none;
+                    border-color: var(--primary-color);
+                    box-shadow: 0 0 0 3px var(--primary-light);
+                }
+            </style>
+
+            <div style="border-top: 1px solid var(--border-color); margin-top: var(--space-5); padding-top: var(--space-4); display: flex; justify-content: flex-end; gap: var(--space-3);">
+                <a href="{% url 'manage_courses' %}" class="saas-btn saas-btn-secondary">Cancel</a>
+                <button type="submit" class="saas-btn saas-btn-primary">
+                    <i class="fas fa-save"></i> Save Course
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

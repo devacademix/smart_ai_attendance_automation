@@ -1,46 +1,90 @@
 {% extends "base.html" %}
 
-{% block title %}Leave Records{% endblock %}
+{% block title %}Leave Applications{% endblock %}
 
 {% block content %}
-    <h2 class="leave-records-title">Leave Records</h2>
-    <div class="leave-table-container">
-        <table>
+<div class="saas-page-header">
+    <div>
+        <h1 class="saas-page-title">Leave Applications</h1>
+        <p class="saas-page-subtitle">Review and manage student leave requests and absences.</p>
+    </div>
+</div>
+
+<div class="saas-card">
+    <div class="saas-card-header">
+        <h3 class="saas-card-title">Pending & Approved Requests</h3>
+    </div>
+    
+    <div class="saas-table-container" style="border: none; box-shadow: none; border-radius: 0;">
+        <table class="saas-table">
             <thead>
                 <tr>
-                    <th>Student</th>
+                    <th>Student Info</th>
                     <th>Reason</th>
-                    <th>Start Date</th>
-                    <th>End Date</th>
+                    <th>Date Range</th>
                     <th>Status</th>
-                    <th>Actions</th>
+                    <th style="text-align: right;">Review Actions</th>
                 </tr>
             </thead>
             <tbody>
                 {% for leave in leaves %}
                 <tr>
-                    <td>{{ leave.student.name }}</td>
-                    <td class="leave-reason">{{ leave.reason }}</td>
-                    <td>{{ leave.start_date }}</td>
-                    <td>{{ leave.end_date }}</td>
                     <td>
-                        {% if leave.approved %}
-                            <span class="leave-status-approved">Approved</span>
-                        {% else %}
-                            <span class="leave-status-pending">Pending</span>
-                        {% endif %}
+                        <div style="display: flex; align-items: center; gap: var(--space-3);">
+                            <div class="saas-avatar" style="width: 36px; height: 36px; background: var(--warning-light); color: var(--warning-color);">
+                                <i class="fas fa-file-medical"></i>
+                            </div>
+                            <div>
+                                <span style="font-weight: 600; color: var(--text-primary); display: block;">{{ leave.student.name }}</span>
+                                <span style="font-size: 0.75rem; color: var(--text-tertiary);">ID: {{ leave.student.roll_no }}</span>
+                            </div>
+                        </div>
+                    </td>
+                    <td style="max-width: 250px;">
+                        <span style="font-size: 0.875rem; color: var(--text-secondary); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; text-overflow: ellipsis; line-height: 1.4;">
+                            {{ leave.reason }}
+                        </span>
+                    </td>
+                    <td>
+                        <div style="font-size: 0.875rem; font-weight: 500;">
+                            <span style="color: var(--text-secondary);">From:</span> {{ leave.start_date|date:"M d, Y" }} <br>
+                            <span style="color: var(--text-secondary);">To:</span> {{ leave.end_date|date:"M d, Y" }}
+                        </div>
                     </td>
                     <td>
                         {% if leave.approved %}
-                            <a href="{% url 'leave_reject' leave.id %}" class="leave-action-link leave-reject">Reject</a> |
+                            <span class="saas-badge saas-badge-success"><i class="fas fa-check" style="margin-right: 4px;"></i> Approved</span>
                         {% else %}
-                            <a href="{% url 'leave_approve' leave.id %}" class="leave-action-link leave-approve">Approve</a> |
+                            <span class="saas-badge saas-badge-warning"><i class="fas fa-clock" style="margin-right: 4px;"></i> Pending</span>
                         {% endif %}
-                        <a href="{% url 'leave_delete' leave.id %}" class="leave-action-link leave-delete">Delete</a>
+                    </td>
+                    <td style="text-align: right;">
+                        <div style="display: flex; gap: var(--space-2); justify-content: flex-end;">
+                            {% if leave.approved %}
+                                <a href="{% url 'leave_reject' leave.id %}" class="saas-btn" style="background: var(--warning-light); color: #B45309; padding: var(--space-2) var(--space-3); font-size: 0.75rem;">
+                                    <i class="fas fa-undo"></i> Revoke
+                                </a>
+                            {% else %}
+                                <a href="{% url 'leave_approve' leave.id %}" class="saas-btn" style="background: var(--accent-light); color: var(--accent-hover); padding: var(--space-2) var(--space-3); font-size: 0.75rem;">
+                                    <i class="fas fa-check"></i> Approve
+                                </a>
+                            {% endif %}
+                            <a href="{% url 'leave_delete' leave.id %}" class="saas-btn" style="background: var(--danger-light); color: var(--danger-color); padding: var(--space-2) var(--space-3); font-size: 0.75rem;">
+                                <i class="fas fa-trash-alt"></i> Delete
+                            </a>
+                        </div>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="5" style="text-align: center; color: var(--text-tertiary); padding: var(--space-8);">
+                        <i class="fas fa-clipboard-check" style="font-size: 3rem; margin-bottom: var(--space-4); display: block; color: var(--border-color);"></i>
+                        No leave applications exist at this time.
                     </td>
                 </tr>
                 {% endfor %}
             </tbody>
         </table>
     </div>
+</div>
 {% endblock %}

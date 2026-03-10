@@ -1,60 +1,57 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Manage Courses</title>
-    <!-- Bootstrap CSS -->
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <!-- Bootstrap Icons (for the Back icon) -->
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons/font/bootstrap-icons.css" rel="stylesheet">
-    <!-- Custom CSS -->
-    <style>
-        body {
-            background-color: #f8f9fa;
-        }
-        .course-card {
-            transition: transform 0.2s, box-shadow 0.2s;
-        }
-        .course-card:hover {
-            transform: scale(1.02);
-            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
-        }
-    </style>
-</head>
-<body>
-    <div class="container py-5">
-        <!-- Header with Back icon and Title -->
-        <div class="d-flex justify-content-between align-items-center mb-4">
-            <!-- Back Icon -->
-            <a href="{% url 'home' %}" class="btn btn-outline-secondary btn-sm">
-                <i class="bi bi-arrow-left"></i> Back
-            </a>
-            <h1 class="text-primary">Manage Courses</h1>
-            <a href="{% url 'add_course' %}" class="btn btn-success">Add New Course</a>
-        </div>
+{% extends 'base.html' %}
 
-        <!-- Courses List -->
-        <div class="row">
-            {% for course in courses %}
-            <div class="col-md-4">
-                <div class="card course-card shadow-sm mb-4">
-                    <div class="card-body">
-                        <h5 class="card-title text-primary">{{ course.name }}</h5>
-                        <p class="card-text text-muted">{{ course.description }}</p>
-                        <div class="d-flex justify-content-between">
-                            <a href="{% url 'edit_course' course.id %}" class="btn btn-outline-primary btn-sm">Edit</a>
-                            <a href="{% url 'delete_course' course.id %}" class="btn btn-outline-danger btn-sm" onclick="return confirm('Are you sure?');">Delete</a>
-                            <a href="{% url 'manage_lessons' course.id %}" class="btn btn-outline-secondary btn-sm">Manage Lessons</a>
-                        </div>
-                    </div>
-                </div>
+{% block title %}Manage Courses{% endblock %}
+
+{% block content %}
+<div class="saas-page-header">
+    <div>
+        <h1 class="saas-page-title">Manage Courses</h1>
+        <p class="saas-page-subtitle">Create, update, and manage the university curriculum and subjects.</p>
+    </div>
+    <div style="display: flex; gap: var(--space-3);">
+        <a href="{% url 'add_course' %}" class="saas-btn saas-btn-primary">
+            <i class="fas fa-plus"></i> Add New Course
+        </a>
+    </div>
+</div>
+
+<div class="saas-grid-4">
+    {% for course in courses %}
+    <div class="saas-card" style="display: flex; flex-direction: column;">
+        <div class="saas-card-header" style="background: var(--surface-color);">
+            <div style="display: flex; flex-direction: column;">
+                <h3 class="saas-card-title" style="color: var(--primary-color);">{{ course.name }}</h3>
+                <span style="font-size: 0.75rem; color: var(--text-tertiary); margin-top: var(--space-1);">Code: {{ course.code|default:"CO-xx" }}</span>
             </div>
-            {% endfor %}
+            <div class="saas-avatar" style="width: 32px; height: 32px; background: var(--bg-color); color: var(--text-secondary);">
+                <i class="fas fa-book"></i>
+            </div>
+        </div>
+        <div class="saas-card-body" style="flex: 1;">
+            <p style="font-size: 0.875rem; color: var(--text-secondary); margin: 0 0 var(--space-4) 0; min-height: 40px;">
+                {{ course.description|truncatewords:15|default:"No description provided for this course module." }}
+            </p>
+            <div style="display: flex; flex-wrap: wrap; gap: var(--space-2); margin-top: auto;">
+                <a href="{% url 'manage_lessons' course.id %}" class="saas-btn" style="background: var(--bg-color); color: var(--text-primary); border: 1px solid var(--border-color); flex: 1; font-size: 0.75rem;">
+                    <i class="fas fa-list"></i> Lessons
+                </a>
+                <a href="{% url 'edit_course' course.id %}" class="saas-btn" style="background: var(--primary-light); color: var(--primary-color); flex: 1; font-size: 0.75rem;">
+                    <i class="fas fa-edit"></i> Edit
+                </a>
+                <a href="{% url 'delete_course' course.id %}" onclick="return confirm('Are you sure you want to delete this course?');" class="saas-btn" style="background: var(--danger-light); color: var(--danger-color); padding-left: 12px; padding-right: 12px;">
+                    <i class="fas fa-trash-alt"></i>
+                </a>
+            </div>
         </div>
     </div>
-
-    <!-- Bootstrap JS -->
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-</body>
-</html>
+    {% empty %}
+    <div class="saas-card" style="grid-column: 1 / -1; padding: var(--space-8); text-align: center; border-style: dashed;">
+        <i class="fas fa-book-open" style="font-size: 3rem; color: var(--text-tertiary); margin-bottom: var(--space-4);"></i>
+        <h3 style="margin: 0 0 var(--space-2) 0; color: var(--text-primary);">No Courses Found</h3>
+        <p style="margin: 0; color: var(--text-secondary);">Get started by creating your first academic course.</p>
+        <br>
+        <a href="{% url 'add_course' %}" class="saas-btn saas-btn-primary"><i class="fas fa-plus"></i> Create Course</a>
+    </div>
+    {% endfor %}
+</div>
+{% endblock %}

@@ -1,110 +1,120 @@
-{% load static %}
 <!DOCTYPE html>
+{% load static %}
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Mark Attendance for {{ course.name }}</title>
-    <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Sharp" rel="stylesheet">
-    <link rel="stylesheet" href="{% static 'style.css' %}">
-    <style>
-        .camera-container {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            padding: 40px;
-            background: var(--color-white);
-            border-radius: var(--card-border-radius);
-            margin-top: 2rem;
-            box-shadow: var(--box-shadow);
-        }
-        .start-btn {
-            padding: 1rem 2rem;
-            background: #7380ec;
-            color: white;
-            border-radius: var(--border-radius-1);
-            font-size: 1.2rem;
-            font-weight: bold;
-            cursor: pointer;
-            border: none;
-            transition: all 300ms ease;
-        }
-        .start-btn:hover {
-            background: #5d67be;
-            transform: scale(1.05);
-        }
-        .info-card {
-            margin-top: 1rem;
-            background: var(--color-light);
-            padding: 1.5rem;
-            border-radius: var(--border-radius-1);
-            width: 100%;
-            max-width: 500px;
-        }
-        .info-card h3 {
-            margin-bottom: 0.5rem;
-            color: var(--color-dark);
-        }
-        .info-card p {
-            color: var(--color-dark-variant);
-        }
-    </style>
+    <!-- Include Font Awesome for icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="{% static 'css/saas_theme.css' %}">
 </head>
-
 <body>
-    <header>
-        <div class="logo">
-            <h2>A<span class="danger">P</span>YC<span class="danger">O</span>DE<span class="danger">R</span></h2>
-        </div>
-        <div class="navbar">
-            <a href="{% url 'teacher_dashboard' %}" class="active">
-                <span class="material-icons-sharp">home</span>
-                <h3>Dashboard</h3>
-            </a>
-            <a href="{% url 'logout' %}">
-                <span class="material-icons-sharp">logout</span>
-                <h3>Logout</h3>
-            </a>
-        </div>
-        <div class="theme-toggler">
-            <span class="material-icons-sharp active">light_mode</span>
-            <span class="material-icons-sharp">dark_mode</span>
-        </div>
-    </header>
 
-    <div class="container" style="display: flex; justify-content: center;">
-        <main style="width: 100%; max-width: 800px;">
-            <div class="camera-container">
-                <h1 style="margin-bottom: 1rem;">Mark Attendance</h1>
-                <h2 style="color: var(--color-primary); margin-bottom: 2rem;">{{ course.name }} ({{ assigned_class.semester.name }})</h2>
-                
-                <div class="info-card">
-                    <h3>Camera Configuration</h3>
-                    <p><strong>Location:</strong> {{ camera.location }}</p>
-                    <p><strong>Name:</strong> {{ camera.name }}</p>
-                    <p><strong>IP/Source:</strong> {{ camera.camera_source }}</p>
-                </div>
+    <!-- Sidebar -->
+    <aside class="saas-sidebar" id="sidebar">
+        <div class="saas-sidebar-header">
+            <i class="fas fa-layer-group" style="font-size: 1.5rem; color: var(--primary-color);"></i>
+            <h2>DevAcademix.</h2>
+        </div>
+        
+        <nav class="saas-sidebar-nav">
+            <a href="{% url 'teacher_dashboard' %}" class="saas-nav-item">
+                <i class="fas fa-home"></i> Dashboard
+            </a>
+            <a href="#" class="saas-nav-item active">
+                <i class="fas fa-video"></i> Mark Attendance
+            </a>
+        </nav>
+    </aside>
 
-                <div style="margin-top: 3rem;">
-                    <!-- Form to trigger backend camera activation -->
-                    <form action="{% url 'start_teacher_camera' assigned_class.id %}" method="POST">
-                        {% csrf_token %}
-                        <button type="submit" class="start-btn">
-                            <span class="material-icons-sharp" style="vertical-align: middle;">videocam</span>
-                            Start Camera & Mark Attendance
-                        </button>
-                    </form>
-                </div>
-                
-                <p style="margin-top: 2rem; color: var(--color-danger); text-align: center;">
-                    Note: Clicking the button above will launch the camera view in a new window on the server device to recognize student faces automatically. Press 'q' on the camera window to stop marking attendance.
-                </p>
+    <!-- Main Content Wrapper -->
+    <div class="saas-main" id="main-content">
+        
+        <!-- Top Header Navigation -->
+        <header class="saas-header">
+            <div style="display: flex; align-items: center;">
+                <button class="saas-menu-toggle" id="toggle-btn" style="margin-right: 15px;">
+                    <i class="fas fa-bars"></i>
+                </button>
             </div>
+            
+            <div class="saas-header-actions">
+                <a href="{% url 'logout' %}" class="saas-btn saas-btn-secondary" style="padding: var(--space-2) var(--space-3); border-radius: 50%;">
+                    <i class="fas fa-sign-out-alt"></i>
+                </a>
+            </div>
+        </header>
+
+        <!-- Dynamic Content injected here -->
+        <main class="saas-content">
+            <div class="saas-page-header">
+                <div>
+                    <h1 class="saas-page-title">Live Video Analytics</h1>
+                    <p class="saas-page-subtitle">Start the AI camera feed to automatically recognize students for {{ course.name }}.</p>
+                </div>
+            </div>
+
+            <div style="display: flex; justify-content: center; align-items: center; min-height: 60vh;">
+                <div class="saas-card" style="width: 100%; max-width: 600px; text-align: center;">
+                    <div class="saas-camera-card" style="height: 250px; background: #0F172A; display: flex; align-items: center; justify-content: center; position: relative;">
+                        <!-- Placeholder graphic for camera -->
+                        <i class="fas fa-camera-retro" style="font-size: 4rem; color: #334155;"></i>
+                        <div class="saas-camera-overlay" style="top: var(--space-4); left: var(--space-4);">
+                            <div class="saas-pulse"></div>
+                            <span style="font-size: 0.75rem; font-weight: 600; text-transform: uppercase;">Ready</span>
+                        </div>
+                    </div>
+
+                    <div class="saas-card-body" style="padding: var(--space-6);">
+                        <h2 style="margin: 0 0 var(--space-2) 0; font-size: 1.5rem; color: var(--secondary-color);">{{ course.name }}<br><span style="font-size: 1rem; color: var(--text-tertiary); font-weight: 400;">{{ assigned_class.semester.name }}</span></h2>
+                        
+                        <div style="background: var(--bg-color); border-radius: var(--radius-md); padding: var(--space-4); margin: var(--space-5) 0; text-align: left; display: grid; gap: var(--space-2); border: 1px solid var(--border-color);">
+                            <h4 style="margin: 0 0 var(--space-2) 0; font-size: 1rem; color: var(--text-primary);">Assigned Cameras:</h4>
+                            {% if cameras %}
+                                {% for cam in cameras %}
+                                <div style="display: flex; justify-content: space-between; font-size: 0.875rem; padding-bottom: 5px; border-bottom: 1px solid #eee;">
+                                    <span style="color: var(--text-secondary);">{{ cam.name }} ({{ cam.location }})</span>
+                                    <span style="font-weight: 600; color: var(--primary-color);">{{ cam.camera_source }}</span>
+                                </div>
+                                {% endfor %}
+                            {% else %}
+                                <span style="font-size: 0.875rem; color: var(--text-secondary);">No cameras assigned.</span>
+                            {% endif %}
+                        </div>
+
+                        <form action="{% url 'start_teacher_camera' assigned_class.id %}" method="POST" style="margin-top: var(--space-5);">
+                            {% csrf_token %}
+                            <button type="submit" class="saas-btn saas-btn-primary" style="width: 100%; padding: var(--space-3); font-size: 1rem;">
+                                <i class="fas fa-play-circle" style="font-size: 1.2rem; margin-right: var(--space-2);"></i> Launch Live Recognition
+                            </button>
+                        </form>
+
+                        <p style="margin-top: var(--space-4); margin-bottom: 0; font-size: 0.875rem; color: var(--text-tertiary);">
+                            <i class="fas fa-info-circle"></i> Once the feed launches, press 'Q' on the video window to terminate the session.
+                        </p>
+                    </div>
+                </div>
+            </div>
+
         </main>
+        
     </div>
 
-    <script src="{% static 'app.js' %}"></script>
+    <!-- JavaScript -->
+    <script>
+        const toggleBtn = document.getElementById('toggle-btn');
+        const sidebar = document.getElementById('sidebar');
+
+        toggleBtn.addEventListener('click', () => {
+            sidebar.classList.toggle('open');
+        });
+
+        document.addEventListener('click', (e) => {
+            if (window.innerWidth <= 1024 && !sidebar.contains(e.target) && !toggleBtn.contains(e.target)) {
+                sidebar.classList.remove('open');
+            }
+        });
+    </script>
 </body>
 </html>

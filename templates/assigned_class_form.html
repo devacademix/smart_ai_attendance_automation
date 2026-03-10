@@ -122,13 +122,13 @@
     </div>
 
     <div class="uni-form-group">
-        <label for="camera_id">Link Classroom Camera Setup (Optional):</label>
-        <select id="camera_id" name="camera_id" class="form-control">
-            <option value="">No Camera Assigned</option>
+        <label for="camera_ids">Link Classroom Camera Setup (Optional):</label>
+        <select id="camera_ids" name="camera_ids" class="form-control" multiple style="min-height: 100px;">
             {% for cam in cameras %}
-            <option value="{{ cam.id }}" {% if assigned_class and assigned_class.camera.id == cam.id %}selected{% endif %}>{{ cam.name }} - {{ cam.location }}</option>
+            <option value="{{ cam.id }}" {% if assigned_class and cam in assigned_class.cameras.all %}selected{% endif %}>{{ cam.name }} - {{ cam.location }}</option>
             {% endfor %}
         </select>
+        <small style="color: #aaa; margin-top: 5px;">Hold Ctrl to select multiple cameras.</small>
     </div>
 
     <button type="submit" class="uni-btn uni-btn-success">Save Assignment</button>
