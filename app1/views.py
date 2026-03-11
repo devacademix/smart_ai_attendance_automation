@@ -494,6 +494,35 @@ def recognize_faces(known_encodings, known_names, test_encodings, threshold=0.6)
             recognized_names.append('Not Recognized')
     return recognized_names
 
+def enhance_image(image):
+    """
+    Enhances the image quality for better face recognition.
+    - Applies CLAHE (Contrast Limited Adaptive Histogram Equalization)
+    - Sharpening
+    - Denoising
+    """
+    try:
+        # Convert to YUV to enhance luminance
+        yuv = cv2.cvtColor(image, cv2.COLOR_BGR2YUV)
+        clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8, 8))
+        yuv[:, :, 0] = clahe.apply(yuv[:, :, 0])
+        enhanced = cv2.cvtColor(yuv, cv2.COLOR_YUV2BGR)
+
+        # Sharpening kernel
+        kernel = np.array([[-1, -1, -1],
+                           [-1, 9, -1],
+                           [-1, -1, -1]])
+        enhanced = cv2.filter2D(enhanced, -1, kernel)
+
+        # Subtle denoising
+        enhanced = cv2.fastNlMeansDenoisingColored(enhanced, None, 10, 10, 7, 21)
+
+        return enhanced
+    except Exception as e:
+        print(f"Error enhancing image: {e}")
+        return image
+
+
 #####################################################################
 
 ############################################################################
@@ -527,6 +556,10 @@ def capture_and_recognize(request):
         image_bytes = base64.b64decode(image_data)
         np_img = np.frombuffer(image_bytes, np.uint8)
         frame = cv2.imdecode(np_img, cv2.IMREAD_COLOR)
+
+        # Enhance the image quality
+        frame = enhance_image(frame)
+
 
         # Convert BGR to RGB for face recognition
         frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
