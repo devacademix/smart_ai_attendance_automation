@@ -55,6 +55,16 @@
                 </div>
             </div>
 
+            {% if messages %}
+            <div style="max-width: 900px; margin: 0 auto var(--space-4) auto; display: grid; gap: var(--space-2);">
+                {% for message in messages %}
+                <div style="padding: var(--space-3); border-radius: var(--radius-sm); border: 1px solid {% if message.tags == 'error' %}#FCA5A5{% else %}#86EFAC{% endif %}; background: {% if message.tags == 'error' %}#FEF2F2{% else %}#F0FDF4{% endif %}; color: {% if message.tags == 'error' %}#991B1B{% else %}#166534{% endif %}; font-size: 0.9rem;">
+                    {{ message }}
+                </div>
+                {% endfor %}
+            </div>
+            {% endif %}
+
             <div style="display: flex; justify-content: center; align-items: center; min-height: 60vh;">
                 <div class="saas-card" style="width: 100%; max-width: 600px; text-align: center;">
                     <div class="saas-camera-card" style="height: 250px; background: #0F172A; display: flex; align-items: center; justify-content: center; position: relative;">

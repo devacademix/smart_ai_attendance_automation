@@ -19,7 +19,8 @@ Redirect rules when access is denied:
   - Staff hitting student route → /admin-dashboard/
 """
 
-from django.shortcuts import redirect
+from django.shortcuts import redirect, render
+from django.urls import resolve, Resolver404
 
 
 # ── Allow-list for paths that NEVER require authentication ──────────────────
@@ -93,6 +94,10 @@ class RoleBasedAccessMiddleware:
     def __call__(self, request):
         path = request.path
         user = request.user
+        try:
+            resolve(path)
+        except Resolver404:
+            return render(request, '404.html', status=404)
 
         # 1️⃣  Public paths – always allowed
         if path in PUBLIC_PATHS:
