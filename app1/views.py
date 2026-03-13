@@ -1,9 +1,11 @@
 import os
+import hashlib
 from .permissions import admin_required, staff_required, student_required  # RBAC decorators
 import cv2
 import numpy as np
 import torch
 from facenet_pytorch import InceptionResnetV1, MTCNN
+from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 from django.shortcuts import render, redirect, get_object_or_404
 from django.conf import settings
 from .models import Student, Attendance, Teacher, AssignedClass
@@ -79,6 +81,11 @@ from .models import Course, Lesson
 
 ####################################################################
 # Home page view
+def custom_404(request, exception):
+    return render(request, '404.html', status=404)
+
+
+# Home page view
 def home(request):
     # Check if the user is authenticated
     if not request.user.is_authenticated:
@@ -104,37 +111,148 @@ def is_admin(user):
 @login_required
 @user_passes_test(is_admin)
 def admin_dashboard(request):
-    
-    # Count total students
+    today = timezone.localdate()
+
+    def _to_float(value):
+        return float(value or 0)
+
+    def _format_inr(value):
+        return f"\u20b9{_to_float(value):,.0f}"
+
+    def _format_inr_short(value):
+        value = _to_float(value)
+        if value >= 10000000:
+            return f"\u20b9{value / 10000000:.1f}Cr"
+        if value >= 100000:
+            return f"\u20b9{value / 100000:.1f}L"
+        if value >= 1000:
+            return f"\u20b9{value / 1000:.1f}K"
+        return f"\u20b9{value:.0f}"
+
+    def _shift_month(year, month, delta):
+        total_months = (year * 12) + (month - 1) + delta
+        shifted_year = total_months // 12
+        shifted_month = (total_months % 12) + 1
+        return shifted_year, shifted_month
+
+    attendance_qs = Attendance.objects.select_related('student')
+
     total_students = Student.objects.count()
-
-    # Total attendance records for today
-    total_attendance = Attendance.objects.count()
-
-    # Total present students for today
-    total_present = Attendance.objects.filter(status='Present').count()
-
-    # Total absent students for today
-    total_absent = Attendance.objects.filter(status='Absent').count()
-
-    # Total late check-ins for today
-    total_late_checkins = Attendance.objects.filter(is_late=True).count()
-
-    # Total check-ins for today
-    total_checkins = Attendance.objects.filter(check_in_time__isnull=False).count()
-
-    # Total check-outs for today
-    total_checkouts = Attendance.objects.filter(check_out_time__isnull=False).count()
-
-    # Total number of cameras
+    total_attendance = attendance_qs.count()
+    total_present = attendance_qs.filter(status='Present').count()
+    total_absent = attendance_qs.filter(status='Absent').count()
+    total_late_checkins = attendance_qs.filter(is_late=True).count()
+    total_checkins = attendance_qs.filter(check_in_time__isnull=False).count()
+    total_checkouts = attendance_qs.filter(check_out_time__isnull=False).count()
     total_cameras = CameraConfiguration.objects.count()
-    # Total number of cameras
     total_course = Course.objects.count()
+    avg_attendance_pct = round((total_present / total_attendance) * 100, 1) if total_attendance else 0
+    leaves_pending = Leave.objects.filter(approved=False).count()
 
-    # Total pending fees
-    total_pending_fees = Fee.get_total_pending_fees()
+    fee_totals = Fee.objects.aggregate(
+        assigned=Sum('total_fee'),
+        balance=Sum('balance'),
+    )
+    total_fee_assigned = _to_float(fee_totals.get('assigned'))
+    total_fee_balance = _to_float(fee_totals.get('balance'))
+    total_pending_fees = total_fee_balance
+    fee_collected = max(total_fee_assigned - total_fee_balance, 0)
+    overdue_amount = _to_float(
+        Fee.objects.filter(due_date__lt=today, balance__gt=0).aggregate(total=Sum('balance')).get('total')
+    )
+    pending_amount = max(total_fee_balance - overdue_amount, 0)
+    paid_amount = max(fee_collected, 0)
+    fee_collected_pct = round((paid_amount / total_fee_assigned) * 100, 1) if total_fee_assigned else 0
+    pending_amount_pct = round((pending_amount / total_fee_assigned) * 100, 1) if total_fee_assigned else 0
+    overdue_amount_pct = round((overdue_amount / total_fee_assigned) * 100, 1) if total_fee_assigned else 0
 
-    # Passing the data to the template
+    student_performance = []
+    for student in Student.objects.all():
+        student_attendance = attendance_qs.filter(student=student)
+        total_records = student_attendance.count()
+        present_records = student_attendance.filter(status='Present').count()
+        percentage = round((present_records / total_records) * 100, 1) if total_records else 0
+        student_performance.append({
+            'name': student.name,
+            'percentage': percentage
+        })
+
+    top_students = sorted(student_performance, key=lambda x: x['percentage'], reverse=True)[:5]
+    at_risk_students = sorted(
+        [entry for entry in student_performance if entry['percentage'] < 75],
+        key=lambda x: x['percentage']
+    )[:5]
+    at_risk_students_count = len([entry for entry in student_performance if entry['percentage'] < 75])
+
+    overview_month_labels = []
+    overview_attendance_rates = []
+    for delta in range(-7, 1):
+        year, month = _shift_month(today.year, today.month, delta)
+        overview_month_labels.append(datetime(year, month, 1).strftime('%b'))
+        month_attendance = attendance_qs.filter(date__year=year, date__month=month)
+        month_total = month_attendance.count()
+        month_present = month_attendance.filter(status='Present').count()
+        rate = round((month_present / month_total) * 100, 1) if month_total else 0
+        overview_attendance_rates.append(rate)
+
+    weekly_labels = []
+    weekly_present = []
+    weekly_late = []
+    weekly_absent = []
+    for day_offset in range(5, -1, -1):
+        day = today - timedelta(days=day_offset)
+        day_attendance = attendance_qs.filter(date=day)
+        weekly_labels.append(day.strftime('%a'))
+        weekly_present.append(day_attendance.filter(status='Present').count())
+        weekly_late.append(day_attendance.filter(is_late=True).count())
+        weekly_absent.append(day_attendance.filter(status='Absent').count())
+
+    department_labels = []
+    department_attendance_pct = []
+    for department in Department.objects.all()[:5]:
+        dept_attendance = attendance_qs.filter(student__department=department)
+        dept_total = dept_attendance.count()
+        dept_present = dept_attendance.filter(status='Present').count()
+        pct = round((dept_present / dept_total) * 100, 1) if dept_total else 0
+        department_labels.append(department.name)
+        department_attendance_pct.append(pct)
+
+    if not department_labels:
+        department_labels = ['CS', 'IT', 'ME', 'EE', 'CE']
+        department_attendance_pct = [0, 0, 0, 0, 0]
+
+    leave_month_labels = []
+    leave_approved_data = []
+    leave_rejected_data = []
+    leave_pending_data = []
+    for delta in range(-5, 1):
+        year, month = _shift_month(today.year, today.month, delta)
+        leave_month_labels.append(datetime(year, month, 1).strftime('%b'))
+        month_leaves = Leave.objects.filter(start_date__year=year, start_date__month=month)
+        leave_approved_data.append(month_leaves.filter(approved=True).count())
+        leave_rejected_data.append(month_leaves.filter(approved=False, end_date__lt=today).count())
+        leave_pending_data.append(month_leaves.filter(approved=False, end_date__gte=today).count())
+
+    semester_labels = []
+    semester_collected = []
+    semester_pending = []
+    for semester in Semester.objects.all()[:5]:
+        semester_fees = Fee.objects.filter(student__semester=semester).distinct()
+        semester_agg = semester_fees.aggregate(
+            assigned=Sum('total_fee'),
+            balance=Sum('balance'),
+        )
+        sem_assigned = _to_float(semester_agg.get('assigned'))
+        sem_pending = _to_float(semester_agg.get('balance'))
+        semester_labels.append(semester.name)
+        semester_collected.append(round(max(sem_assigned - sem_pending, 0), 2))
+        semester_pending.append(round(sem_pending, 2))
+
+    if not semester_labels:
+        semester_labels = ['Sem 1', 'Sem 2', 'Sem 3', 'Sem 4', 'Sem 5']
+        semester_collected = [0, 0, 0, 0, 0]
+        semester_pending = [0, 0, 0, 0, 0]
+
     context = {
         'total_students': total_students,
         'total_attendance': total_attendance,
@@ -145,7 +263,40 @@ def admin_dashboard(request):
         'total_checkouts': total_checkouts,
         'total_cameras': total_cameras,
         'total_course': total_course,
-        'total_pending_fees': total_pending_fees,  # Added total pending fees to context
+        'total_pending_fees': total_pending_fees,
+        'avg_attendance_pct': avg_attendance_pct,
+        'leaves_pending': leaves_pending,
+        'at_risk_students_count': at_risk_students_count,
+        'top_students': top_students,
+        'at_risk_students': at_risk_students,
+        'fee_collected': fee_collected,
+        'fee_collected_short': _format_inr_short(fee_collected),
+        'total_fee_assigned': total_fee_assigned,
+        'total_fee_assigned_display': _format_inr(total_fee_assigned),
+        'total_collected_display': _format_inr(fee_collected),
+        'pending_amount': pending_amount,
+        'pending_amount_display': _format_inr(pending_amount),
+        'overdue_amount': overdue_amount,
+        'overdue_amount_display': _format_inr(overdue_amount),
+        'fee_collected_pct': fee_collected_pct,
+        'pending_amount_pct': pending_amount_pct,
+        'overdue_amount_pct': overdue_amount_pct,
+        'fee_status_values_json': json.dumps([round(paid_amount, 2), round(pending_amount, 2), round(overdue_amount, 2)]),
+        'overview_month_labels_json': json.dumps(overview_month_labels),
+        'overview_attendance_rates_json': json.dumps(overview_attendance_rates),
+        'weekly_labels_json': json.dumps(weekly_labels),
+        'weekly_present_json': json.dumps(weekly_present),
+        'weekly_late_json': json.dumps(weekly_late),
+        'weekly_absent_json': json.dumps(weekly_absent),
+        'department_labels_json': json.dumps(department_labels),
+        'department_attendance_pct_json': json.dumps(department_attendance_pct),
+        'leave_month_labels_json': json.dumps(leave_month_labels),
+        'leave_approved_json': json.dumps(leave_approved_data),
+        'leave_rejected_json': json.dumps(leave_rejected_data),
+        'leave_pending_json': json.dumps(leave_pending_data),
+        'semester_labels_json': json.dumps(semester_labels),
+        'semester_collected_json': json.dumps(semester_collected),
+        'semester_pending_json': json.dumps(semester_pending),
     }
 
     return render(request, 'admin/admin-dashboard.html', context)
@@ -157,54 +308,220 @@ def mark_attendance(request):
 
 #############################################################
 # Initialize MTCNN and InceptionResnetV1
-mtcnn = MTCNN(keep_all=True)
-resnet = InceptionResnetV1(pretrained='vggface2').eval()
+DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+FACE_MATCH_THRESHOLD = float(os.getenv("FACE_MATCH_THRESHOLD", "0.6"))
+FACE_DETECT_SCALE = float(os.getenv("FACE_DETECT_SCALE", "0.5"))
+if FACE_DETECT_SCALE <= 0 or FACE_DETECT_SCALE > 1:
+    FACE_DETECT_SCALE = 0.5
+
+mtcnn = MTCNN(keep_all=True, device=DEVICE)
+resnet = InceptionResnetV1(pretrained='vggface2').eval().to(DEVICE)
+
+
+def _safe_student_checkout_threshold(student, default_seconds):
+    try:
+        student_settings = student.settings
+    except Settings.DoesNotExist:
+        return default_seconds
+
+    if student_settings and student_settings.check_out_time_threshold is not None:
+        return student_settings.check_out_time_threshold
+    return default_seconds
+
+
+def _face_embedding_key():
+    env_key = os.getenv("FACE_EMBEDDING_AES_KEY")
+    if env_key:
+        try:
+            padded = env_key + ("=" * (-len(env_key) % 4))
+            raw_key = base64.urlsafe_b64decode(padded)
+            if len(raw_key) == 32:
+                return raw_key
+        except Exception:
+            pass
+
+    # Fallback key derived from Django SECRET_KEY when an explicit 32-byte key isn't provided.
+    return hashlib.sha256(settings.SECRET_KEY.encode("utf-8")).digest()
+
+
+def encrypt_face_embedding(embedding):
+    if embedding is None:
+        return None
+
+    embedding_list = np.asarray(embedding, dtype=np.float32).tolist()
+    plaintext = json.dumps(embedding_list, separators=(",", ":")).encode("utf-8")
+    nonce = os.urandom(12)
+    ciphertext = AESGCM(_face_embedding_key()).encrypt(nonce, plaintext, None)
+
+    return {
+        "enc": "aesgcm256",
+        "nonce": base64.b64encode(nonce).decode("ascii"),
+        "ciphertext": base64.b64encode(ciphertext).decode("ascii"),
+    }
+
+
+def decrypt_face_embedding(payload):
+    if payload is None:
+        return None
+
+    if isinstance(payload, list):
+        return np.asarray(payload, dtype=np.float32)
+
+    if not isinstance(payload, dict) or payload.get("enc") != "aesgcm256":
+        return None
+
+    try:
+        nonce = base64.b64decode(payload["nonce"])
+        ciphertext = base64.b64decode(payload["ciphertext"])
+        plaintext = AESGCM(_face_embedding_key()).decrypt(nonce, ciphertext, None)
+        decoded = json.loads(plaintext.decode("utf-8"))
+        return np.asarray(decoded, dtype=np.float32)
+    except Exception:
+        return None
+
+
+def detect_faces(image_rgb):
+    if FACE_DETECT_SCALE < 1.0:
+        scaled_frame = cv2.resize(image_rgb, (0, 0), fx=FACE_DETECT_SCALE, fy=FACE_DETECT_SCALE)
+        boxes, _ = mtcnn.detect(scaled_frame)
+        if boxes is not None:
+            boxes = boxes / FACE_DETECT_SCALE
+        return boxes
+
+    boxes, _ = mtcnn.detect(image_rgb)
+    return boxes
+
+
+def extract_face_patch(image_rgb, box):
+    height, width = image_rgb.shape[:2]
+    x1 = max(int(box[0]), 0)
+    y1 = max(int(box[1]), 0)
+    x2 = min(int(box[2]), width)
+    y2 = min(int(box[3]), height)
+
+    if x2 <= x1 or y2 <= y1:
+        return None
+
+    face = image_rgb[y1:y2, x1:x2]
+    if face.size == 0:
+        return None
+    return face
+
+
+def encode_face_patch(face_rgb):
+    face = cv2.resize(face_rgb, (160, 160))
+    face = np.transpose(face, (2, 0, 1)).astype(np.float32) / 255.0
+    face_tensor = torch.tensor(face, device=DEVICE).unsqueeze(0)
+    with torch.no_grad():
+        return resnet(face_tensor).detach().cpu().numpy().flatten()
 
 # Function to detect and encode faces
 def detect_and_encode(image):
     with torch.no_grad():
-        boxes, _ = mtcnn.detect(image)
+        boxes = detect_faces(image)
         if boxes is not None:
             faces = []
             for box in boxes:
-                face = image[int(box[1]):int(box[3]), int(box[0]):int(box[2])]
-                if face.size == 0:
+                face_patch = extract_face_patch(image, box)
+                if face_patch is None:
                     continue
-                face = cv2.resize(face, (160, 160))
-                face = np.transpose(face, (2, 0, 1)).astype(np.float32) / 255.0
-                face_tensor = torch.tensor(face).unsqueeze(0)
-                encoding = resnet(face_tensor).detach().numpy().flatten()
+                encoding = encode_face_patch(face_patch)
                 faces.append(encoding)
             return faces
     return []
 
 # Function to encode uploaded images
-def encode_uploaded_images():
+def encode_uploaded_images(student_ids=None, include_ids=False):
     known_face_encodings = []
     known_face_names = []
+    known_face_ids = []
 
     # Fetch only authorized students
-    uploaded_images = Student.objects.filter(authorized=True)
+    uploaded_images = Student.objects.filter(authorized=True).only('id', 'name', 'face_embedding')
+    if student_ids is not None:
+        uploaded_images = uploaded_images.filter(id__in=student_ids)
 
     for student in uploaded_images:
-        # Use the face_embedding stored in the model directly
-        if student.face_embedding:
-            known_face_encodings.append(np.array(student.face_embedding))
-            known_face_names.append(student.name)
+        decoded_embedding = decrypt_face_embedding(student.face_embedding)
+        if decoded_embedding is None:
+            continue
 
+        known_face_encodings.append(decoded_embedding)
+        known_face_names.append(student.name)
+        known_face_ids.append(student.id)
+
+        # Lazy-upgrade legacy plaintext JSON embeddings to AES-GCM encrypted payloads.
+        if isinstance(student.face_embedding, list):
+            try:
+                Student.objects.filter(id=student.id).update(
+                    face_embedding=encrypt_face_embedding(decoded_embedding)
+                )
+            except Exception:
+                pass
+
+    if include_ids:
+        return known_face_encodings, known_face_names, known_face_ids
     return known_face_encodings, known_face_names
+
+
+def match_face_indices(known_encodings, test_encodings, threshold=FACE_MATCH_THRESHOLD):
+    if not known_encodings:
+        return []
+
+    known_matrix = np.asarray(known_encodings, dtype=np.float32)
+    matched_indices = []
+
+    for test_encoding in test_encodings:
+        distances = np.linalg.norm(known_matrix - np.asarray(test_encoding, dtype=np.float32), axis=1)
+        min_distance_idx = int(np.argmin(distances))
+        if float(distances[min_distance_idx]) < threshold:
+            matched_indices.append(min_distance_idx)
+        else:
+            matched_indices.append(None)
+
+    return matched_indices
+
 
 # Function to recognize faces
 def recognize_faces(known_encodings, known_names, test_encodings, threshold=0.6):
     recognized_names = []
-    for test_encoding in test_encodings:
-        distances = np.linalg.norm(known_encodings - test_encoding, axis=1)
-        min_distance_idx = np.argmin(distances)
-        if distances[min_distance_idx] < threshold:
+    match_indices = match_face_indices(known_encodings, test_encodings, threshold=threshold)
+    for idx in match_indices:
+        if idx is not None:
+            min_distance_idx = int(idx)
             recognized_names.append(known_names[min_distance_idx])
         else:
             recognized_names.append('Not Recognized')
     return recognized_names
+
+def enhance_image(image):
+    """
+    Enhances the image quality for better face recognition.
+    - Applies CLAHE (Contrast Limited Adaptive Histogram Equalization)
+    - Sharpening
+    - Denoising
+    """
+    try:
+        # Convert to YUV to enhance luminance
+        yuv = cv2.cvtColor(image, cv2.COLOR_BGR2YUV)
+        clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8, 8))
+        yuv[:, :, 0] = clahe.apply(yuv[:, :, 0])
+        enhanced = cv2.cvtColor(yuv, cv2.COLOR_YUV2BGR)
+
+        # Sharpening kernel
+        kernel = np.array([[-1, -1, -1],
+                           [-1, 9, -1],
+                           [-1, -1, -1]])
+        enhanced = cv2.filter2D(enhanced, -1, kernel)
+
+        # Subtle denoising
+        enhanced = cv2.fastNlMeansDenoisingColored(enhanced, None, 10, 10, 7, 21)
+
+        return enhanced
+    except Exception as e:
+        print(f"Error enhancing image: {e}")
+        return image
+
 
 #####################################################################
 
@@ -230,7 +547,6 @@ def capture_and_recognize(request):
 
         # Parse image data from request
         data = json.loads(request.body)
-        student_name = data.get('student_name')
         image_data = data.get('image')
         if not image_data:
             return JsonResponse({'message': 'No image data received.'}, status=400)
@@ -241,6 +557,10 @@ def capture_and_recognize(request):
         np_img = np.frombuffer(image_bytes, np.uint8)
         frame = cv2.imdecode(np_img, cv2.IMREAD_COLOR)
 
+        # Enhance the image quality
+        frame = enhance_image(frame)
+
+
         # Convert BGR to RGB for face recognition
         frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
 
@@ -250,21 +570,23 @@ def capture_and_recognize(request):
             return JsonResponse({'message': 'No face detected.'}, status=200)
 
         # Retrieve known face encodings and recognize faces
-        known_face_encodings, known_face_names = encode_uploaded_images()
+        known_face_encodings, known_face_names, known_face_ids = encode_uploaded_images(include_ids=True)
         if not known_face_encodings:
             return JsonResponse({'message': 'No known faces available.'}, status=200)
 
-        recognized_names = recognize_faces(
-            np.array(known_face_encodings),
-            known_face_names,
+        matched_indices = match_face_indices(
+            known_face_encodings,
             test_face_encodings,
-            threshold=0.6
+            threshold=FACE_MATCH_THRESHOLD
         )
+        students_map = {
+            student.id: student for student in Student.objects.filter(id__in=known_face_ids)
+        }
 
         # Prepare and update attendance records
         attendance_response = []
-        for name in recognized_names:
-            if name == 'Not Recognized':
+        for matched_idx in matched_indices:
+            if matched_idx is None:
                 attendance_response.append({
                     'name': 'Unknown',
                     'status': 'Face not recognized',
@@ -275,15 +597,16 @@ def capture_and_recognize(request):
                 })
                 continue
 
-            student = Student.objects.filter(name=name).first()
+            student_id = known_face_ids[int(matched_idx)]
+            name = known_face_names[int(matched_idx)]
+            student = students_map.get(student_id)
             if not student:
                 continue
 
             # Use student-specific setting if available, otherwise use global setting
-            student_threshold_seconds = (
-                student.settings.check_out_time_threshold
-                if student.settings and student.settings.check_out_time_threshold is not None
-                else global_check_out_threshold_seconds
+            student_threshold_seconds = _safe_student_checkout_threshold(
+                student,
+                global_check_out_threshold_seconds
             )
 
             # Check if the student already has an attendance record for today
@@ -385,16 +708,13 @@ def update_leave_attendance(today):
 # Function to detect and encode faces
 def detect_and_encode_uploaded_image_for_register(image):
     with torch.no_grad():
-        boxes, _ = mtcnn.detect(image)
+        boxes = detect_faces(image)
         if boxes is not None:
             for box in boxes:
-                face = image[int(box[1]):int(box[3]), int(box[0]):int(box[2])]
-                if face.size == 0:
+                face = extract_face_patch(image, box)
+                if face is None:
                     continue
-                face = cv2.resize(face, (160, 160))
-                face = np.transpose(face, (2, 0, 1)).astype(np.float32) / 255.0
-                face_tensor = torch.tensor(face).unsqueeze(0)
-                encoding = resnet(face_tensor).detach().numpy().flatten()
+                encoding = encode_face_patch(face)
                 return encoding
     return None
 ############################################################################################
@@ -474,7 +794,7 @@ def register_student(request):
                 name=name,
                 email=email,
                 phone_number=phone_number,
-                face_embedding=face_embedding.tolist(),  # Save the face embedding
+                face_embedding=encrypt_face_embedding(face_embedding),  # Save encrypted face embedding
                 authorized=False,
                 roll_no=roll_no,
                 address=address,
@@ -1004,6 +1324,8 @@ def capture_and_recognize_with_cam(request):
     camera_threads = []  # List to store threads for each camera
     camera_windows = []  # List to store window names
     error_messages = []  # List to capture errors from threads
+    global_settings = Settings.objects.filter(student__isnull=True).first() or Settings.objects.first()
+    global_check_out_threshold_seconds = global_settings.check_out_time_threshold if global_settings else 28800
 
     def process_frame(cam_config, stop_event):
         """Thread function to capture and process frames for each camera."""
@@ -1019,14 +1341,25 @@ def capture_and_recognize_with_cam(request):
             if not cap.isOpened():
                 raise Exception(f"Unable to access camera {cam_config.name}.")
 
-            threshold = cam_config.threshold
+            threshold = cam_config.threshold or FACE_MATCH_THRESHOLD
 
             # Initialize pygame mixer for sound playback
             pygame.mixer.init()
-            success_sound = pygame.mixer.Sound('static/success.wav')  # Load sound path
+            try:
+                success_sound = pygame.mixer.Sound('static/success.wav')  # Load sound path
+            except Exception:
+                success_sound = None
 
             window_name = f'Camera Location - {cam_config.location}'
             camera_windows.append(window_name)  # Track the window name
+            known_face_encodings, known_face_names, known_face_ids = encode_uploaded_images(include_ids=True)
+            if not known_face_encodings:
+                raise Exception("No authorized student face profiles found.")
+
+            known_face_matrix = np.asarray(known_face_encodings, dtype=np.float32)
+            students_map = {
+                student.id: student for student in Student.objects.filter(id__in=known_face_ids)
+            }
 
             while not stop_event.is_set():
                 ret, frame = cap.read()
@@ -1036,64 +1369,68 @@ def capture_and_recognize_with_cam(request):
 
                 # Convert BGR to RGB
                 frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-                test_face_encodings = detect_and_encode(frame_rgb)  # Function to detect and encode face in frame
+                boxes = detect_faces(frame_rgb)
 
-                if test_face_encodings:
-                    known_face_encodings, known_face_names = encode_uploaded_images()  # Load known face encodings once
-                    if known_face_encodings:
-                        names = recognize_faces(
-                            np.array(known_face_encodings), known_face_names, test_face_encodings, threshold
-                        )
+                if boxes is not None:
+                    for box in boxes:
+                        face_patch = extract_face_patch(frame_rgb, box)
+                        if face_patch is None:
+                            continue
 
-                        for name, box in zip(names, mtcnn.detect(frame_rgb)[0]):
-                            if box is not None:
-                                (x1, y1, x2, y2) = map(int, box)
-                                cv2.rectangle(frame, (x1, y1), (x2, y2), (0, 255, 0), 2)
-                                cv2.putText(frame, name, (x1, y1 - 10), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2, cv2.LINE_AA)
+                        test_face_encoding = encode_face_patch(face_patch)
+                        distances = np.linalg.norm(known_face_matrix - test_face_encoding, axis=1)
+                        min_distance_idx = int(np.argmin(distances))
+                        min_distance = float(distances[min_distance_idx])
 
-                                if name != 'Not Recognized':
-                                    students = Student.objects.filter(name=name)
-                                    if students.exists():
-                                        student = students.first()
-                                        print(f"Recognized student: {student.name}")  # Debugging log
+                        x1, y1, x2, y2 = map(int, box)
+                        cv2.rectangle(frame, (x1, y1), (x2, y2), (0, 255, 0), 2)
 
-                                        # Fetch the check-out time threshold
-                                        if student.settings:
-                                            check_out_threshold_seconds = student.settings.check_out_time_threshold
+                        label = "Unknown"
+                        label_color = (0, 0, 255)
 
-                                        # Check if attendance exists for today
-                                        attendance, created = Attendance.objects.get_or_create(
-                                            student=student, date=now().date()
-                                        )
+                        if min_distance <= threshold:
+                            student_id = known_face_ids[min_distance_idx]
+                            student = students_map.get(student_id)
+                            if student:
+                                name = known_face_names[min_distance_idx]
+                                check_out_threshold_seconds = _safe_student_checkout_threshold(
+                                    student,
+                                    global_check_out_threshold_seconds
+                                )
 
-                                        if attendance.check_in_time is None:
-                                            attendance.mark_checked_in()
+                                attendance, _ = Attendance.objects.get_or_create(
+                                    student=student,
+                                    date=now().date()
+                                )
+
+                                if attendance.check_in_time is None:
+                                    attendance.mark_checked_in()
+                                    if success_sound:
+                                        success_sound.play()
+                                    label = f"{name}, checked in."
+                                    label_color = (0, 255, 0)
+                                elif attendance.check_out_time is None:
+                                    if now() >= attendance.check_in_time + timedelta(seconds=check_out_threshold_seconds):
+                                        attendance.mark_checked_out()
+                                        if success_sound:
                                             success_sound.play()
-                                            cv2.putText(
-                                                frame, f"{name}, checked in.", (50, 50), 
-                                                cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2, cv2.LINE_AA
-                                            )
-                                            print(f"Attendance checked in for {student.name}")
-                                        elif attendance.check_out_time is None:
-                                            if now() >= attendance.check_in_time + timedelta(seconds=check_out_threshold_seconds):
-                                                attendance.mark_checked_out()
-                                                success_sound.play()
-                                                cv2.putText(
-                                                    frame, f"{name}, checked out.", (50, 50), 
-                                                    cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2, cv2.LINE_AA
-                                                )
-                                                print(f"Attendance checked out for {student.name}")
-                                            else:
-                                                cv2.putText(
-                                                    frame, f"{name}, already checked in.", (50, 50), 
-                                                    cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2, cv2.LINE_AA
-                                                )
-                                        else:
-                                            cv2.putText(
-                                                frame, f"{name}, already checked out.", (50, 50), 
-                                                cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2, cv2.LINE_AA
-                                            )
-                                            print(f"Attendance already completed for {student.name}")
+                                        label = f"{name}, checked out."
+                                        label_color = (0, 255, 0)
+                                    else:
+                                        label = f"{name}, already checked in."
+                                else:
+                                    label = f"{name}, already checked out."
+
+                        cv2.putText(
+                            frame,
+                            label,
+                            (x1, max(y1 - 10, 20)),
+                            cv2.FONT_HERSHEY_SIMPLEX,
+                            0.7,
+                            label_color,
+                            2,
+                            cv2.LINE_AA
+                        )
 
                 # Display frame in a separate window for each camera
                 if not window_created:
@@ -1846,7 +2183,31 @@ def start_teacher_camera(request, class_id):
         courses=assigned_class.course,
         department=assigned_class.department,
         semester=assigned_class.semester
+    ).distinct()
+
+    if not students_in_class.exists():
+        messages.error(
+            request,
+            "No students are mapped to this class (course + department + semester). "
+            "Attendance cannot be marked yet."
+        )
+        return redirect('teacher_mark_attendance', class_id=class_id)
+
+    eligible_student_ids = list(
+        students_in_class.filter(authorized=True, face_embedding__isnull=False)
+        .values_list('id', flat=True)
+        .distinct()
     )
+    if not eligible_student_ids:
+        messages.error(
+            request,
+            "No authorized student face profiles found for this class. "
+            "Authorize students and ensure face capture is completed first."
+        )
+        return redirect('teacher_mark_attendance', class_id=class_id)
+
+    global_settings = Settings.objects.filter(student__isnull=True).first() or Settings.objects.first()
+    global_check_out_threshold_seconds = global_settings.check_out_time_threshold if global_settings else 28800
     
     stop_events = []
     camera_threads = []
@@ -1865,7 +2226,7 @@ def start_teacher_camera(request, class_id):
             if not cap.isOpened():
                 raise Exception(f"Unable to access camera {cam_config.name}.")
 
-            threshold = cam_config.threshold
+            threshold = cam_config.threshold or FACE_MATCH_THRESHOLD
             pygame.mixer.init()
             try:
                 success_sound = pygame.mixer.Sound('static/success.wav')
@@ -1875,7 +2236,16 @@ def start_teacher_camera(request, class_id):
             window_name = f'Teacher Camera - {cam_config.location}'
             camera_windows.append(window_name)
 
-            known_face_encodings, known_face_names = encode_uploaded_images()
+            known_face_encodings, known_face_names, known_face_ids = encode_uploaded_images(
+                eligible_student_ids, include_ids=True
+            )
+            if not known_face_encodings:
+                raise Exception("No authorized student face profiles are available for recognition.")
+
+            known_face_matrix = np.asarray(known_face_encodings, dtype=np.float32)
+            students_map = {
+                student.id: student for student in students_in_class.filter(id__in=eligible_student_ids)
+            }
 
             while not stop_event.is_set():
                 ret, frame = cap.read()
@@ -1883,68 +2253,59 @@ def start_teacher_camera(request, class_id):
                     break
                 
                 frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-                
-                with torch.no_grad():
-                    boxes, _ = mtcnn.detect(frame_rgb)
-                    
-                if boxes is not None and known_face_encodings:
+                boxes = detect_faces(frame_rgb)
+
+                if boxes is not None:
                     for box in boxes:
                         pt1 = (int(box[0]), int(box[1]))
                         pt2 = (int(box[2]), int(box[3]))
                         cv2.rectangle(frame, pt1, pt2, (255, 0, 0), 2)
-                        
-                        face = frame_rgb[int(box[1]):int(box[3]), int(box[0]):int(box[2])]
-                        if face.size == 0:
+
+                        face = extract_face_patch(frame_rgb, box)
+                        if face is None:
                             continue
-                        face = cv2.resize(face, (160, 160))
-                        face = np.transpose(face, (2, 0, 1)).astype(np.float32) / 255.0
-                        face_tensor = torch.tensor(face).unsqueeze(0)
-                        
-                        with torch.no_grad():
-                            test_face_encoding = resnet(face_tensor).detach().numpy().flatten()
-                        
-                        distances = [np.linalg.norm(test_face_encoding - known_face_encoding) for known_face_encoding in known_face_encodings]
-                        
-                        if not distances:
-                            continue
-                            
-                        min_distance_idx = np.argmin(distances)
-                        min_distance = distances[min_distance_idx]
-                        
+
+                        test_face_encoding = encode_face_patch(face)
+                        distances = np.linalg.norm(known_face_matrix - test_face_encoding, axis=1)
+                        min_distance_idx = int(np.argmin(distances))
+                        min_distance = float(distances[min_distance_idx])
+
                         text_y = int(box[3]) + 20
                         text_x = int(box[0])
-                        
-                        if min_distance <= threshold:
-                            name = known_face_names[min_distance_idx]
-                            if name != "Unknown":
-                                student = students_in_class.filter(name=name).first()
-                                
-                                if student:
-                                    with transaction.atomic():
-                                        global_settings = Settings.objects.first()
-                                        check_out_threshold_seconds = global_settings.check_out_time_threshold if global_settings else 28800
-                                        
-                                        attendance, created = Attendance.objects.get_or_create(
-                                            student=student, date=now().date(), course=assigned_class.course
-                                        )
 
-                                        if attendance.check_in_time is None:
-                                            attendance.mark_checked_in()
+                        if min_distance <= threshold:
+                            student_id = known_face_ids[min_distance_idx]
+                            name = known_face_names[min_distance_idx]
+                            student = students_map.get(student_id)
+
+                            if student:
+                                with transaction.atomic():
+                                    check_out_threshold_seconds = _safe_student_checkout_threshold(
+                                        student,
+                                        global_check_out_threshold_seconds
+                                    )
+
+                                    attendance, created = Attendance.objects.get_or_create(
+                                        student=student, date=now().date(), course=assigned_class.course
+                                    )
+
+                                    if attendance.check_in_time is None:
+                                        attendance.mark_checked_in()
+                                        if success_sound:
+                                            success_sound.play()
+                                        cv2.putText(frame, f"{name}, checked in.", (text_x, text_y), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 255, 0), 2, cv2.LINE_AA)
+                                    elif attendance.check_out_time is None:
+                                        if now() >= attendance.check_in_time + timedelta(seconds=check_out_threshold_seconds):
+                                            attendance.mark_checked_out()
                                             if success_sound:
                                                 success_sound.play()
-                                            cv2.putText(frame, f"{name}, checked in.", (text_x, text_y), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 255, 0), 2, cv2.LINE_AA)
-                                        elif attendance.check_out_time is None:
-                                            if now() >= attendance.check_in_time + timedelta(seconds=check_out_threshold_seconds):
-                                                attendance.mark_checked_out()
-                                                if success_sound:
-                                                    success_sound.play()
-                                                cv2.putText(frame, f"{name}, checked out.", (text_x, text_y), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 255, 0), 2, cv2.LINE_AA)
-                                            else:
-                                                cv2.putText(frame, f"{name}, already checked in.", (text_x, text_y), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 0, 255), 2, cv2.LINE_AA)
+                                            cv2.putText(frame, f"{name}, checked out.", (text_x, text_y), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 255, 0), 2, cv2.LINE_AA)
                                         else:
-                                            cv2.putText(frame, f"{name}, already checked out.", (text_x, text_y), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 0, 255), 2, cv2.LINE_AA)
-                                else:
-                                    cv2.putText(frame, f"{name} (Not in Class)", (text_x, text_y), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 165, 255), 2, cv2.LINE_AA)
+                                            cv2.putText(frame, f"{name}, already checked in.", (text_x, text_y), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 0, 255), 2, cv2.LINE_AA)
+                                    else:
+                                        cv2.putText(frame, f"{name}, already checked out.", (text_x, text_y), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 0, 255), 2, cv2.LINE_AA)
+                            else:
+                                cv2.putText(frame, f"{name} (Not in Class)", (text_x, text_y), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 165, 255), 2, cv2.LINE_AA)
                         else:
                             cv2.putText(frame, "Unknown", (text_x, text_y), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 0, 255), 2, cv2.LINE_AA)
 
@@ -2232,4 +2593,111 @@ def monitor_cameras(request):
     from .multi_camera import launch_multi_camera_monitor
     launch_multi_camera_monitor()   # reads camera list from CameraConfiguration DB table
     return redirect('admin_dashboard')
+
+
+###########################################################
+# Web-Based Camera Streaming for VPS/Headless Servers
+###########################################################
+
+@login_required
+def teacher_camera_stream_view(request, class_id):
+    """
+    Display web-based camera streaming page for teacher's assigned class.
+    This works on VPS servers without requiring a display/GUI.
+    """
+    from .models import Teacher, AssignedClass, CameraConfiguration
+    
+    try:
+        teacher = Teacher.objects.get(user=request.user)
+    except Teacher.DoesNotExist:
+        messages.error(request, "Teacher profile not found.")
+        return redirect('login')
+    
+    assigned_class = get_object_or_404(AssignedClass, id=class_id, teacher=teacher)
+    cameras = assigned_class.cameras.all()
+    
+    # Real-time statistics for the class
+    students_in_class = Student.objects.filter(
+        courses=assigned_class.course,
+        department=assigned_class.department,
+        semester=assigned_class.semester
+    ).distinct()
+    
+    total_students = students_in_class.count()
+    present_today = Attendance.objects.filter(
+        student__in=students_in_class,
+        course=assigned_class.course,
+        date=timezone_now().date(),
+        status='Present'
+    ).count()
+    
+    if not cameras.exists():
+        messages.error(request, "No cameras assigned to this class.")
+        return redirect('teacher_mark_attendance', class_id=class_id)
+    
+    context = {
+        'teacher': teacher,
+        'assigned_class': assigned_class,
+        'cameras': cameras,
+        'total_students': total_students,
+        'present_today': present_today,
+        'absent_today': total_students - present_today,
+    }
+    
+    return render(request, 'teacher/teacher_camera_stream.html', context)
+
+
+@login_required
+def generate_camera_stream(request, class_id, camera_id):
+    """
+    Generate MJPEG stream for a specific camera.
+    This streams live video with face recognition to the browser.
+    """
+    from .web_camera_stream import generate_mjpeg_stream
+    return generate_mjpeg_stream(request, class_id, camera_id=camera_id)
+
+
+@login_required
+def get_live_attendance_stats(request, class_id):
+    """
+    JSON endpoint for polling live attendance stats and recent marks.
+    """
+    try:
+        teacher = Teacher.objects.get(user=request.user)
+    except Teacher.DoesNotExist:
+        return JsonResponse({'error': 'Unauthorized'}, status=403)
+        
+    assigned_class = get_object_or_404(AssignedClass, id=class_id, teacher=teacher)
+    
+    students_in_class = Student.objects.filter(
+        courses=assigned_class.course,
+        department=assigned_class.department,
+        semester=assigned_class.semester
+    ).distinct()
+    
+    total_students = students_in_class.count()
+    attendances = Attendance.objects.filter(
+        student__in=students_in_class,
+        course=assigned_class.course,
+        date=timezone_now().date()
+    ).order_by('-check_in_time')
+    
+    present_today = attendances.filter(status='Present').count()
+    
+    recent_marks = []
+    for att in attendances[:10]:
+        recent_marks.append({
+            'student_name': att.student.name,
+            'roll_no': att.student.roll_no,
+            'time': att.check_in_time.strftime('%I:%M %p') if att.check_in_time else 'N/A',
+            'status': att.status,
+            'is_late': att.is_late
+        })
+        
+    return JsonResponse({
+        'total_students': total_students,
+        'present_today': present_today,
+        'absent_today': total_students - present_today,
+        'recent_marks': recent_marks
+    })
 

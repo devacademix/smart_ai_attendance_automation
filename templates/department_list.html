@@ -1,91 +1,134 @@
 {% extends 'base.html' %}
 
-{% block content %}
-<style>h1 {
-    font-size: 2rem;
-    font-weight: bold;
-    text-align: center;
-    margin-bottom: 1.5rem;
-    color: hsl(0, 60%, 98%);
-}
+{% block title %}Departments{% endblock %}
 
-.table {
-    width: 100%;
-    margin-top: 1rem;
-    border-collapse: collapse;
-    background-color: hsl(0, 0%, 0%);
-}
+{% block extra_css %}
+<style>
+    .config-switch {
+        display: flex;
+        gap: var(--space-2);
+        flex-wrap: wrap;
+        margin-bottom: var(--space-5);
+    }
 
-.table th, .table td {
-    padding: 1rem;
-    text-align: left;
-    border-bottom: 1px solid #ddd;
-}
+    .config-chip {
+        padding: var(--space-2) var(--space-3);
+        border-radius: 999px;
+        border: 1px solid var(--border-color);
+        background: var(--surface-color);
+        color: var(--text-secondary);
+        font-size: 0.82rem;
+        text-decoration: none;
+        font-weight: 600;
+    }
 
-.table th {
-    background-color: #007bff;
-    color: white;
-    font-size: 1.1rem;
-}
+    .config-chip.active {
+        background: var(--primary-light);
+        border-color: #BFDBFE;
+        color: var(--primary-color);
+    }
 
-.table tbody tr:hover {
-    background-color: hsl(0, 6%, 3%);
-}
+    .metric-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+        gap: var(--space-5);
+        margin-bottom: var(--space-6);
+    }
 
-.table .btn {
-    padding: 0.5rem 1rem;
-    font-size: 0.875rem;
-    border-radius: 5px;
-    text-decoration: none;
-    margin-right: 0.5rem;
-}
+    .metric-card {
+        background: var(--surface-color);
+        border: 1px solid var(--border-color);
+        border-radius: var(--radius-lg);
+        box-shadow: var(--shadow-sm);
+        padding: var(--space-4);
+    }
 
-.table .btn-warning {
-    background-color: #ffc107;
-    color: white;
-    border: none;
-}
+    .metric-label {
+        margin: 0;
+        color: var(--text-secondary);
+        font-size: 0.8rem;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        font-weight: 700;
+    }
 
-.table .btn-warning:hover {
-    background-color: #e0a800;
-    color: inherit;
-}
+    .metric-value {
+        margin: var(--space-2) 0 0;
+        color: var(--text-primary);
+        font-size: 1.7rem;
+        font-weight: 700;
+    }
 
-.table .btn-danger {
-    background-color: #dc3545;
-    color: white;
-    border: none;
-}
-
-.table .btn-danger:hover {
-    background-color: #c82333;
-    color: inherit;
-}
-
+    .action-group {
+        display: flex;
+        gap: var(--space-2);
+        flex-wrap: wrap;
+    }
 </style>
-<h1>Department List</h1>
-<a href="{% url 'department_create' %}" class="btn btn-primary">Add New Department</a>
-<table class="table">
-    <thead>
-        <tr>
-            <th>#</th>
-            <th>Name</th>
-            <th>Description</th>
-            <th>Actions</th>
-        </tr>
-    </thead>
-    <tbody>
-        {% for department in departments %}
-        <tr>
-            <td>{{ forloop.counter }}</td>
-            <td>{{ department.name }}</td>
-            <td>{{ department.description }}</td>
-            <td>
-                <a href="{% url 'department_update' department.id %}" class="btn btn-warning btn-sm">Edit</a>
-                <a href="{% url 'department_delete' department.id %}" class="btn btn-danger btn-sm">Delete</a>
-            </td>
-        </tr>
-        {% endfor %}
-    </tbody>
-</table>
+{% endblock %}
+
+{% block content %}
+<div class="saas-page-header">
+    <div>
+        <h1 class="saas-page-title">Departments</h1>
+        <p class="saas-page-subtitle">Define academic departments used in teacher mapping and class assignment.</p>
+    </div>
+    <a href="{% url 'department_create' %}" class="saas-btn saas-btn-primary">
+        <i class="fas fa-plus"></i> Add Department
+    </a>
+</div>
+
+<div class="config-switch">
+    <a href="{% url 'session_list' %}" class="config-chip"><i class="fas fa-calendar"></i> Academic Sessions</a>
+    <a href="{% url 'semester_list' %}" class="config-chip"><i class="fas fa-book"></i> Semesters</a>
+    <a href="{% url 'department_list' %}" class="config-chip active"><i class="fas fa-building"></i> Departments</a>
+</div>
+
+<div class="metric-grid">
+    <div class="metric-card">
+        <p class="metric-label">Total Departments</p>
+        <p class="metric-value">{{ departments|length }}</p>
+    </div>
+</div>
+
+<div class="saas-card">
+    <div class="saas-card-header">
+        <h3 class="saas-card-title">Department Registry</h3>
+    </div>
+    <div class="saas-table-container">
+        <table class="saas-table">
+            <thead>
+                <tr>
+                    <th>#</th>
+                    <th>Department</th>
+                    <th>Description</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for department in departments %}
+                <tr>
+                    <td>{{ forloop.counter }}</td>
+                    <td style="font-weight: 600;">{{ department.name }}</td>
+                    <td style="max-width: 460px; color: var(--text-secondary);">{{ department.description|default:"-" }}</td>
+                    <td>
+                        <div class="action-group">
+                            <a href="{% url 'department_update' department.id %}" class="saas-btn saas-btn-secondary">
+                                <i class="fas fa-pen"></i> Edit
+                            </a>
+                            <a href="{% url 'department_delete' department.id %}" class="saas-btn saas-btn-danger">
+                                <i class="fas fa-trash"></i> Delete
+                            </a>
+                        </div>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="4" style="text-align: center; color: var(--text-tertiary);">No departments found.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
 {% endblock %}

@@ -1,0 +1,12 @@
+# Python cache and bytecode
+__pycache__/
+*.py[cod]
+
+# Local editor/tool artifacts
+.qoder/
+*.onetoc2
+
+# Runtime/generated local files
+media/
+error.txt
+output2.txt
