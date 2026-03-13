@@ -2594,3 +2594,110 @@ def monitor_cameras(request):
     launch_multi_camera_monitor()   # reads camera list from CameraConfiguration DB table
     return redirect('admin_dashboard')
 
+
+###########################################################
+# Web-Based Camera Streaming for VPS/Headless Servers
+###########################################################
+
+@login_required
+def teacher_camera_stream_view(request, class_id):
+    """
+    Display web-based camera streaming page for teacher's assigned class.
+    This works on VPS servers without requiring a display/GUI.
+    """
+    from .models import Teacher, AssignedClass, CameraConfiguration
+    
+    try:
+        teacher = Teacher.objects.get(user=request.user)
+    except Teacher.DoesNotExist:
+        messages.error(request, "Teacher profile not found.")
+        return redirect('login')
+    
+    assigned_class = get_object_or_404(AssignedClass, id=class_id, teacher=teacher)
+    cameras = assigned_class.cameras.all()
+    
+    # Real-time statistics for the class
+    students_in_class = Student.objects.filter(
+        courses=assigned_class.course,
+        department=assigned_class.department,
+        semester=assigned_class.semester
+    ).distinct()
+    
+    total_students = students_in_class.count()
+    present_today = Attendance.objects.filter(
+        student__in=students_in_class,
+        course=assigned_class.course,
+        date=timezone_now().date(),
+        status='Present'
+    ).count()
+    
+    if not cameras.exists():
+        messages.error(request, "No cameras assigned to this class.")
+        return redirect('teacher_mark_attendance', class_id=class_id)
+    
+    context = {
+        'teacher': teacher,
+        'assigned_class': assigned_class,
+        'cameras': cameras,
+        'total_students': total_students,
+        'present_today': present_today,
+        'absent_today': total_students - present_today,
+    }
+    
+    return render(request, 'teacher/teacher_camera_stream.html', context)
+
+
+@login_required
+def generate_camera_stream(request, class_id, camera_id):
+    """
+    Generate MJPEG stream for a specific camera.
+    This streams live video with face recognition to the browser.
+    """
+    from .web_camera_stream import generate_mjpeg_stream
+    return generate_mjpeg_stream(request, class_id, camera_id=camera_id)
+
+
+@login_required
+def get_live_attendance_stats(request, class_id):
+    """
+    JSON endpoint for polling live attendance stats and recent marks.
+    """
+    try:
+        teacher = Teacher.objects.get(user=request.user)
+    except Teacher.DoesNotExist:
+        return JsonResponse({'error': 'Unauthorized'}, status=403)
+        
+    assigned_class = get_object_or_404(AssignedClass, id=class_id, teacher=teacher)
+    
+    students_in_class = Student.objects.filter(
+        courses=assigned_class.course,
+        department=assigned_class.department,
+        semester=assigned_class.semester
+    ).distinct()
+    
+    total_students = students_in_class.count()
+    attendances = Attendance.objects.filter(
+        student__in=students_in_class,
+        course=assigned_class.course,
+        date=timezone_now().date()
+    ).order_by('-check_in_time')
+    
+    present_today = attendances.filter(status='Present').count()
+    
+    recent_marks = []
+    for att in attendances[:10]:
+        recent_marks.append({
+            'student_name': att.student.name,
+            'roll_no': att.student.roll_no,
+            'time': att.check_in_time.strftime('%I:%M %p') if att.check_in_time else 'N/A',
+            'status': att.status,
+            'is_late': att.is_late
+        })
+        
+    return JsonResponse({
+        'total_students': total_students,
+        'present_today': present_today,
+        'absent_today': total_students - present_today,
+        'recent_marks': recent_marks
+    })
+

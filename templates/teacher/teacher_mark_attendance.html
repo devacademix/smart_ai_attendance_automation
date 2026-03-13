@@ -96,12 +96,21 @@
                         <form action="{% url 'start_teacher_camera' assigned_class.id %}" method="POST" style="margin-top: var(--space-5);">
                             {% csrf_token %}
                             <button type="submit" class="saas-btn saas-btn-primary" style="width: 100%; padding: var(--space-3); font-size: 1rem;">
-                                <i class="fas fa-play-circle" style="font-size: 1.2rem; margin-right: var(--space-2);"></i> Launch Live Recognition
+                                <i class="fas fa-play-circle" style="font-size: 1.2rem; margin-right: var(--space-2);"></i> Launch Live Recognition (Desktop)
                             </button>
                         </form>
 
+                        <div style="margin-top: var(--space-4); text-align: center;">
+                            <p style="font-size: 0.875rem; color: var(--text-tertiary); margin-bottom: var(--space-3);">
+                                <i class="fas fa-server"></i> Using a VPS/Headless server? Use web-based streaming instead.
+                            </p>
+                            <a href="{% url 'teacher_camera_stream' assigned_class.id %}" class="saas-btn saas-btn-secondary" style="width: 100%; padding: var(--space-3); font-size: 1rem; display: inline-block; text-decoration: none;">
+                                <i class="fas fa-globe"></i> Launch Web-Based Camera Stream
+                            </a>
+                        </div>
+
                         <p style="margin-top: var(--space-4); margin-bottom: 0; font-size: 0.875rem; color: var(--text-tertiary);">
-                            <i class="fas fa-info-circle"></i> Once the feed launches, press 'Q' on the video window to terminate the session.
+                            <i class="fas fa-info-circle"></i> Desktop version requires display/GUI. Web version works on VPS without display.
                         </p>
                     </div>
                 </div>

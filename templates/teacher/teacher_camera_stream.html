@@ -1,0 +1,427 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Live Camera Stream - {{ assigned_class.course.name }}</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background: #F8FAFC;
+            color: #1E293B;
+            padding: 24px;
+        }
+        
+        .dashboard-container {
+            max-width: 1600px;
+            margin: 0 auto;
+            display: grid;
+            grid-template-columns: 1fr 380px;
+            gap: 24px;
+        }
+        
+        /* Main Viewport */
+        .main-stream {
+            background: white;
+            border-radius: 24px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.05);
+            overflow: hidden;
+            border: 1px solid #E2E8F0;
+        }
+        
+        .header {
+            background: white;
+            padding: 24px 32px;
+            border-bottom: 1px solid #E2E8F0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .header-title h1 {
+            font-size: 1.5rem;
+            color: #0F172A;
+        }
+        
+        .header-title p {
+            font-size: 0.875rem;
+            color: #64748B;
+        }
+
+        .teacher-info {
+            text-align: right;
+            font-size: 0.875rem;
+            color: #64748B;
+        }
+
+        .teacher-info strong {
+            color: #0F172A;
+            display: block;
+        }
+        
+        .status-badge {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            background: #F1F5F9;
+            padding: 8px 16px;
+            border-radius: 99px;
+            font-weight: 500;
+            font-size: 0.875rem;
+            margin-right: 20px;
+        }
+        
+        .pulse-dot {
+            width: 8px;
+            height: 8px;
+            background: #10B981;
+            border-radius: 50%;
+            box-shadow: 0 0 0 rgba(16, 185, 129, 0.4);
+            animation: pulse-green 2s infinite;
+        }
+        
+        @keyframes pulse-green {
+            0% { box-shadow: 0 0 0 0px rgba(16, 185, 129, 0.4); }
+            70% { box-shadow: 0 0 0 10px rgba(16, 185, 129, 0); }
+            100% { box-shadow: 0 0 0 0px rgba(16, 185, 129, 0); }
+        }
+        
+        /* Stats Bar */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 20px;
+            padding: 24px 32px;
+            background: #FDFDFD;
+        }
+        
+        .stat-card {
+            padding: 20px;
+            background: white;
+            border-radius: 16px;
+            border: 1px solid #F1F5F9;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+        
+        .stat-label {
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: #64748B;
+            font-weight: 600;
+        }
+        
+        .stat-value {
+            font-size: 1.75rem;
+            font-weight: 700;
+            color: #0F172A;
+        }
+        
+        .stat-card.present { border-left: 4px solid #10B981; }
+        .stat-card.absent { border-left: 4px solid #EF4444; }
+        .stat-card.total { border-left: 4px solid #6366F1; }
+        
+        /* Camera Section */
+        .camera-grid {
+            padding: 24px;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(450px, 1fr));
+            gap: 24px;
+        }
+        
+        .camera-box {
+            background: #0F172A;
+            border-radius: 16px;
+            overflow: hidden;
+            position: relative;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        }
+        
+        .camera-info {
+            position: absolute;
+            top: 16px;
+            left: 16px;
+            z-index: 10;
+            background: rgba(15, 23, 42, 0.8);
+            backdrop-filter: blur(4px);
+            padding: 8px 12px;
+            border-radius: 8px;
+            color: white;
+            font-size: 0.875rem;
+        }
+        
+        .camera-feed-container {
+            width: 100%;
+            aspect-ratio: 16/9;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .camera-feed-container img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+        
+        .stream-loading {
+            position: absolute;
+            color: #64748B;
+            font-size: 0.875rem;
+        }
+        
+        /* Activity Sidebar */
+        .activity-sidebar {
+            background: white;
+            border-radius: 24px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.05);
+            display: flex;
+            flex-direction: column;
+            border: 1px solid #E2E8F0;
+            max-height: calc(100vh - 48px);
+        }
+        
+        .sidebar-header {
+            padding: 24px;
+            border-bottom: 1px solid #E2E8F0;
+        }
+        
+        .sidebar-header h2 {
+            font-size: 1.125rem;
+            color: #0F172A;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .activity-list {
+            flex: 1;
+            overflow-y: auto;
+            padding: 16px;
+        }
+        
+        .activity-item {
+            padding: 12px;
+            border-radius: 12px;
+            border-bottom: 1px solid #F1F5F9;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            transition: background 0.2s;
+        }
+        
+        .activity-item:hover {
+            background: #F8FAFC;
+        }
+        
+        .activity-name {
+            font-weight: 600;
+            font-size: 0.9375rem;
+            color: #0F172A;
+        }
+        
+        .activity-meta {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.75rem;
+            color: #64748B;
+        }
+        
+        .status-pill {
+            padding: 2px 8px;
+            border-radius: 99px;
+            font-size: 0.7rem;
+            font-weight: 700;
+            text-transform: uppercase;
+        }
+        
+        .pill-present { background: #DCFCE7; color: #166534; }
+        .pill-late { background: #FEF3C7; color: #92400E; }
+        
+        .sidebar-footer {
+            padding: 20px;
+            border-top: 1px solid #E2E8F0;
+            display: flex;
+            gap: 12px;
+        }
+        
+        .action-btn {
+            flex: 1;
+            padding: 10px;
+            border-radius: 8px;
+            border: none;
+            font-weight: 600;
+            font-size: 0.875rem;
+            cursor: pointer;
+            transition: all 0.2s;
+            text-decoration: none;
+            text-align: center;
+        }
+        
+        .btn-refresh { background: #6366F1; color: white; }
+        .btn-refresh:hover { background: #4F46E5; }
+        .btn-back { background: #F1F5F9; color: #475569; }
+        .btn-back:hover { background: #E2E8F0; }
+
+        /* Scrollbar Styling */
+        .activity-list::-webkit-scrollbar {
+            width: 6px;
+        }
+        .activity-list::-webkit-scrollbar-thumb {
+            background: #CBD5E1;
+            border-radius: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="dashboard-container">
+        <!-- Main Content Area -->
+        <main class="main-stream">
+            <div class="header">
+                <div class="header-title">
+                    <h1>{{ assigned_class.course.name }}</h1>
+                    <p>{{ assigned_class.department.name }} • Semester {{ assigned_class.semester.name }}</p>
+                </div>
+                <div style="display: flex; align-items: center;">
+                    <div class="status-badge">
+                        <div class="pulse-dot"></div>
+                        Live Stream
+                    </div>
+                    <div class="teacher-info">
+                        <span>Logged in as:</span>
+                        <strong>{{ teacher.name|default:assigned_class.teacher.name|default:request.user.get_full_name|default:request.user.username }}</strong>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="stats-grid">
+                <div class="stat-card total">
+                    <span class="stat-label">Total Registered</span>
+                    <span class="stat-value" id="stat-total">{{ total_students }}</span>
+                </div>
+                <div class="stat-card present">
+                    <span class="stat-label">Present Today</span>
+                    <span class="stat-value" id="stat-present">{{ present_today }}</span>
+                </div>
+                <div class="stat-card absent">
+                    <span class="stat-label">Not In Session</span>
+                    <span class="stat-value" id="stat-absent">{{ absent_today }}</span>
+                </div>
+            </div>
+            
+            <div class="camera-grid">
+                {% for camera in cameras %}
+                <div class="camera-box">
+                    <div class="camera-info">
+                        <strong>{{ camera.name }}</strong> • {{ camera.location }}
+                    </div>
+                    <div class="camera-feed-container">
+                        <span class="stream-loading" id="load-{{ camera.id }}">Connecting to feed...</span>
+                        <img src="{% url 'camera_stream' assigned_class.id camera.id %}" 
+                             id="feed-{{ camera.id }}"
+                             onload="document.getElementById('load-{{ camera.id }}').style.display='none'"
+                             onerror="retryStream(this, {{ camera.id }})">
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </main>
+
+        <!-- Sidebar Activity Log -->
+        <aside class="activity-sidebar">
+            <div class="sidebar-header">
+                <h2>Recent Attendance Marks</h2>
+                <small style="color: #64748B;">Updating in real-time...</small>
+            </div>
+            
+            <div class="activity-list" id="log-container">
+                <!-- Log items will be injected here via JS -->
+                <div style="padding: 40px; text-align: center; color: #94A3B8;">
+                    <p>Waiting for detections...</p>
+                </div>
+            </div>
+            
+            <div class="sidebar-footer">
+                <a href="{% url 'teacher_mark_attendance' assigned_class.id %}" class="action-btn btn-back">Exit</a>
+                <button onclick="manualRefresh()" class="btn-refresh action-btn">Refresh</button>
+            </div>
+        </aside>
+    </div>
+
+    <script>
+        const CLASS_ID = "{{ assigned_class.id }}";
+        const STATS_URL = "{% url 'live_attendance_stats' assigned_class.id %}";
+
+        function retryStream(img, cameraId) {
+            console.log(`Stream error for camera ${cameraId}, retrying...`);
+            setTimeout(() => {
+                const timestamp = new Date().getTime();
+                let baseUrl = "{% url 'camera_stream' assigned_class.id 0 %}".replace('/0/', '/' + cameraId + '/');
+                img.src = baseUrl + '?t=' + timestamp;
+            }, 5000);
+        }
+
+        function updateStats() {
+            fetch(STATS_URL)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.error) return;
+
+                    // Update Counters
+                    document.getElementById('stat-total').textContent = data.total_students;
+                    document.getElementById('stat-present').textContent = data.present_today;
+                    document.getElementById('stat-absent').textContent = data.absent_today;
+
+                    // Update Log
+                    const container = document.getElementById('log-container');
+                    if (data.recent_marks.length === 0) {
+                        container.innerHTML = `<div style="padding: 40px; text-align: center; color: #94A3B8;"><p>No detections yet today.</p></div>`;
+                        return;
+                    }
+
+                    let html = '';
+                    data.recent_marks.forEach(item => {
+                        const statusClass = item.status === 'Present' ? 'pill-present' : 'pill-late';
+                        html += `
+                            <div class="activity-item">
+                                <div style="display: flex; justify-content: space-between; align-items: start;">
+                                    <span class="activity-name">${item.student_name}</span>
+                                    <span class="status-pill ${statusClass}">${item.status}</span>
+                                </div>
+                                <div class="activity-meta">
+                                    <span>Roll: ${item.roll_no}</span>
+                                    <span>${item.time}</span>
+                                </div>
+                            </div>
+                        `;
+                    });
+                    container.innerHTML = html;
+                })
+                .catch(err => console.error("Polling error:", err));
+        }
+
+        function manualRefresh() {
+            updateStats();
+            document.querySelectorAll('img').forEach(img => {
+                const id = img.id.replace('feed-', '');
+                if (id) retryStream(img, id);
+            });
+        }
+
+        // Poll for stats every 5 seconds
+        setInterval(updateStats, 5000);
+        
+        // Initial load
+        updateStats();
+    </script>
+</body>
+</html>
