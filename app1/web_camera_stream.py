@@ -78,17 +78,16 @@ class CameraFrameGenerator:
         try:
             source = self.cam_config.camera_source
             if source.isdigit():
-                self.cap = cv2.VideoCapture(int(source))
-            else:
-                # Add protocol if missing for IP cameras
-                if not source.startswith(('http://', 'https://', 'rtsp://', 'rtmp://')):
-                    source = 'http://' + source
                 print(f"Connecting to camera source: {source}")
-                self.cap = cv2.VideoCapture(source)
+                # Use CAP_FFMPEG for better performance on Linux VPS
+                self.cap = cv2.VideoCapture(source, cv2.CAP_FFMPEG)
                 
             if not self.cap.isOpened():
-                print(f"Failed to open camera: {self.cam_config.name} at {source}")
+                print(f"[ERROR] [{self.cam_config.name}] Remote VPS cannot reach source: {source}")
+                print(f"[TIP] Make sure your VPS can ping this IP or if using Tailscale, that the VPS is logged in.")
                 return False
+            
+            print(f"[SUCCESS] [{self.cam_config.name}] Connected to stream at {source}")
                 
             # Set camera properties for better detection quality
             self.cap.set(cv2.CAP_PROP_FRAME_WIDTH, 1280)
@@ -336,7 +335,12 @@ def generate_mjpeg_stream(request, class_id, camera_id=None):
                         yield (b'--frame\r\n'
                               b'Content-Type: image/jpeg\r\n\r\n' + frame + b'\r\n')
                         frame_index += 1
-                    time.sleep(0.03)
+                    else:
+                        # Yield a "Searching/Error" frame if no data is coming
+                        if frame_index % 30 == 0: # Print every 30 iterations to avoid log spam
+                             print(f"Status: Waiting for frames from {gen.cam_config.name}...")
+                        
+                    time.sleep(0.01) # Faster polling for snappier response
         except GeneratorExit:
             # Clean up when client disconnects
             for gen in generators:
