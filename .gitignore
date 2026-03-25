@@ -1,0 +1,16 @@
+# Python cache and bytecode
+__pycache__/
+*.py[cod]
+*.log
+
+# Local editor/tool artifacts
+.qoder/
+*.onetoc2
+.vscode/
+
+# Runtime/generated local files
+media/
+error.txt
+output2.txt
+venv/
+venv311/

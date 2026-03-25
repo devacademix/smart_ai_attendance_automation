@@ -1,101 +1,104 @@
 {% extends 'base.html' %}
 
-{% block content %}
+{% block title %}{% if semester %}Update Semester{% else %}Create Semester{% endif %}{% endblock %}
+
+{% block extra_css %}
 <style>
-    .uni-h1 {
-        font-size: 2rem;
-        font-weight: bold;
-        text-align: center;
-        margin-bottom: 1.5rem;
-        color: hsl(0, 56%, 98%);
-    }
-    
-    .uni-form {
+    .config-switch {
         display: flex;
-        flex-direction: column;
-        align-items: center;
-        gap: 1.5rem;
-        margin-top: 1rem;
+        gap: var(--space-2);
+        flex-wrap: wrap;
+        margin-bottom: var(--space-5);
     }
-    
-    .uni-form-group {
-        width: 100%;
-        max-width: 600px;
-        display: flex;
-        flex-direction: column;
-    }
-    
-    .uni-form-group label {
-        font-size: 1rem;
-        margin-bottom: 0.5rem;
-        color: hsl(0, 50%, 95%);
-    }
-    
-    .uni-form-group input, .uni-form-group textarea {
-        padding: 0.75rem;
-        font-size: 1rem;
-        border-radius: 5px;
-        border: 1px solid #ccc;
-        width: 100%;
-        box-sizing: border-box;
-    }
-    
-    .uni-form-group input:focus, .uni-form-group textarea:focus {
-        border-color: #007bff;
-        outline: none;
-    }
-    
-    .uni-btn {
-        padding: 0.75rem 2rem;
-        font-size: 1rem;
-        border-radius: 5px;
-        cursor: pointer;
+
+    .config-chip {
+        padding: var(--space-2) var(--space-3);
+        border-radius: 999px;
+        border: 1px solid var(--border-color);
+        background: var(--surface-color);
+        color: var(--text-secondary);
+        font-size: 0.82rem;
         text-decoration: none;
-        width: 100%;
-        max-width: 200px;
+        font-weight: 600;
     }
-    
-    .uni-btn-success {
-        background-color: #28a745;
-        color: white;
-        border: none;
+
+    .config-chip.active {
+        background: var(--primary-light);
+        border-color: #BFDBFE;
+        color: var(--primary-color);
     }
-    
-    .uni-btn-success:hover {
-        background-color: #218838;
+
+    .form-wrap {
+        max-width: 760px;
+        margin: 0 auto;
     }
-    
-    .uni-btn-secondary {
-        background-color: hsl(56, 94%, 52%);
-        color: white;
-        border: none;
+
+    .action-row {
+        display: flex;
+        gap: var(--space-3);
+        margin-top: var(--space-5);
     }
-    
-    .uni-btn-secondary:hover {
-        background-color: hsl(180, 8%, 97%);
+
+    .saas-textarea {
+        min-height: 110px;
+        resize: vertical;
+    }
+
+    @media (max-width: 640px) {
+        .action-row {
+            flex-direction: column;
+        }
     }
 </style>
+{% endblock %}
 
-<h1 class="uni-h1">{% if semester %}Update{% else %}Create{% endif %} Semester</h1>
-<form method="post" class="uni-form">
-    {% csrf_token %}
-    <div class="uni-form-group">
-        <label for="name">Name:</label>
-        <input type="text" id="name" name="name" class="form-control" value="{{ semester.name|default:'' }}" required placeholder="Enter semester name">
+{% block content %}
+<div class="saas-page-header">
+    <div>
+        <h1 class="saas-page-title">{% if semester %}Update Semester{% else %}Create Semester{% endif %}</h1>
+        <p class="saas-page-subtitle">Define a semester period for assigning students and tracking attendance by term.</p>
     </div>
-    <div class="uni-form-group">
-        <label for="start_date">Start Date:</label>
-        <input type="date" id="start_date" name="start_date" class="form-control" value="{{ semester.start_date|date:'Y-m-d' }}" placeholder="Select start date">
+</div>
+
+<div class="config-switch">
+    <a href="{% url 'session_list' %}" class="config-chip"><i class="fas fa-calendar"></i> Academic Sessions</a>
+    <a href="{% url 'semester_list' %}" class="config-chip active"><i class="fas fa-book"></i> Semesters</a>
+    <a href="{% url 'department_list' %}" class="config-chip"><i class="fas fa-building"></i> Departments</a>
+</div>
+
+<div class="saas-card form-wrap">
+    <div class="saas-card-header">
+        <h3 class="saas-card-title">Semester Details</h3>
     </div>
-    <div class="uni-form-group">
-        <label for="end_date">End Date:</label>
-        <input type="date" id="end_date" name="end_date" class="form-control" value="{{ semester.end_date|date:'Y-m-d' }}" placeholder="Select end date">
+    <div class="saas-card-body">
+        <form method="post" class="saas-form" style="max-width: 100%;">
+            {% csrf_token %}
+            <div class="saas-form-group">
+                <label class="saas-label" for="name">Semester Name</label>
+                <input type="text" id="name" name="name" class="saas-input" value="{{ semester.name|default:'' }}" placeholder="e.g. Semester 1" required>
+            </div>
+            <div class="saas-form-group">
+                <label class="saas-label" for="start_date">Start Date</label>
+                <input type="date" id="start_date" name="start_date" class="saas-input" value="{{ semester.start_date|date:'Y-m-d' }}" required>
+            </div>
+            <div class="saas-form-group">
+                <label class="saas-label" for="end_date">End Date</label>
+                <input type="date" id="end_date" name="end_date" class="saas-input" value="{{ semester.end_date|date:'Y-m-d' }}" required>
+            </div>
+            <div class="saas-form-group">
+                <label class="saas-label" for="description">Description</label>
+                <textarea id="description" name="description" class="saas-input saas-textarea" placeholder="Optional notes about this semester">{{ semester.description|default:'' }}</textarea>
+            </div>
+
+            <div class="action-row">
+                <button type="submit" class="saas-btn saas-btn-primary">
+                    <i class="fas fa-save"></i> Save Semester
+                </button>
+                <a href="{% url 'semester_list' %}" class="saas-btn saas-btn-secondary">
+                    Cancel
+                </a>
+            </div>
+        </form>
     </div>
-    <div class="uni-form-group">
-        <label for="description">Description:</label>
-        <textarea id="description" name="description" class="form-control" placeholder="Enter semester description">{{ semester.description|default:'' }}</textarea>
-    </div>
-    <button type="submit" class="uni-btn uni-btn-success">Save</button>
-    <a href="{% url 'semester_list' %}" class="uni-btn uni-btn-secondary">Cancel</a>
-</form>
+</div>
 {% endblock %}

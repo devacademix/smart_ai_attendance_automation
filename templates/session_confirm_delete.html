@@ -1,61 +1,70 @@
 {% extends 'base.html' %}
 
-{% block content %}
-<style>h1 {
-    font-size: 2rem;
-    font-weight: bold;
-    text-align: center;
-    margin-bottom: 1rem;
-    color: hwb(0 97% 0%);
-}
+{% block title %}Delete Session{% endblock %}
 
-p {
-    font-size: 1rem;
-    color: hwb(0 97% 0%);
-    text-align: center;
-    margin-bottom: 2rem;
-}
+{% block extra_css %}
+<style>
+    .confirm-wrap {
+        max-width: 620px;
+        margin: 0 auto;
+    }
 
-form {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 1rem;
-}
+    .confirm-icon {
+        width: 56px;
+        height: 56px;
+        border-radius: 50%;
+        background: var(--danger-light);
+        color: var(--danger-color);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.4rem;
+        margin-bottom: var(--space-4);
+    }
 
-form .btn {
-    padding: 0.5rem 1.5rem;
-    font-size: 1rem;
-    border-radius: 5px;
-    cursor: pointer;
-    text-decoration: none;
-}
+    .confirm-actions {
+        display: flex;
+        gap: var(--space-3);
+        margin-top: var(--space-5);
+    }
 
-form .btn-danger {
-    background-color: #dc3545;
-    color: white;
-    border: none;
-}
-
-form .btn-danger:hover {
-    background-color: #c82333;
-}
-
-form .btn-secondary {
-    background-color: #6c757d;
-    color: white;
-    border: none;
-}
-
-form .btn-secondary:hover {
-    background-color: #5a6268;
-}
+    @media (max-width: 640px) {
+        .confirm-actions {
+            flex-direction: column;
+        }
+    }
 </style>
-<h1>Delete Session</h1><style></style>
-<p>Are you sure you want to delete the session "{{ session.name }}"?</p>
-<form method="post">
-    {% csrf_token %}
-    <button type="submit" class="btn btn-danger">Yes, Delete</button>
-    <a href="{% url 'session_list' %}" class="btn btn-secondary">Cancel</a>
-</form>
+{% endblock %}
+
+{% block content %}
+<div class="saas-page-header">
+    <div>
+        <h1 class="saas-page-title">Delete Academic Session</h1>
+        <p class="saas-page-subtitle">This action removes the selected session from the configuration list.</p>
+    </div>
+</div>
+
+<div class="saas-card confirm-wrap">
+    <div class="saas-card-body">
+        <div class="confirm-icon">
+            <i class="fas fa-trash"></i>
+        </div>
+        <h3 class="saas-card-title" style="margin-bottom: var(--space-2);">Confirm Deletion</h3>
+        <p style="margin: 0; color: var(--text-secondary);">
+            Are you sure you want to delete session <strong>"{{ session.name }}"</strong>?
+        </p>
+
+        <form method="post">
+            {% csrf_token %}
+            <div class="confirm-actions">
+                <button type="submit" class="saas-btn saas-btn-danger">
+                    <i class="fas fa-trash"></i> Yes, Delete
+                </button>
+                <a href="{% url 'session_list' %}" class="saas-btn saas-btn-secondary">
+                    Cancel
+                </a>
+            </div>
+        </form>
+    </div>
+</div>
 {% endblock %}

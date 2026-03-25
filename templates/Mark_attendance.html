@@ -193,15 +193,37 @@
                 });
 
             // Perform face detection periodically
+            let lastCaptureTime = 0;
+            const CAPTURE_INTERVAL = 30000; // 30 seconds
+
+            function updateTimer() {
+                const now = Date.now();
+                const timeRemaining = Math.max(0, CAPTURE_INTERVAL - (now - lastCaptureTime));
+                const secondsRemaining = Math.ceil(timeRemaining / 1000);
+                
+                let timerElement = document.getElementById('next-capture-timer');
+                if (!timerElement) {
+                    timerElement = document.createElement('div');
+                    timerElement.id = 'next-capture-timer';
+                    timerElement.style.margin = '10px';
+                    timerElement.style.padding = '10px';
+                    timerElement.style.backgroundColor = '#007BFF';
+                    timerElement.style.color = 'white';
+                    timerElement.style.borderRadius = '20px';
+                    timerElement.style.display = 'inline-block';
+                    video.insertAdjacentElement('afterend', timerElement);
+                }
+                timerElement.innerText = `Next capture in: ${secondsRemaining}s`;
+            }
+
             video.addEventListener('loadeddata', () => {
+                lastCaptureTime = Date.now();
+                setInterval(updateTimer, 1000);
+                
                 setInterval(async () => {
-                    if (faceDetectionModel) {
-                        const predictions = await faceDetectionModel.estimateFaces(video, false);
-                        if (predictions.length > 0) {
-                            captureAndSendImage();
-                        }
-                    }
-                }, 1000); // Check every  seconds
+                    captureAndSendImage();
+                    lastCaptureTime = Date.now();
+                }, CAPTURE_INTERVAL); 
             });
 
             // Capture and send the image to the server

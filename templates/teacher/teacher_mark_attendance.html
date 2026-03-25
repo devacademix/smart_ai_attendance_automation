@@ -55,6 +55,16 @@
                 </div>
             </div>
 
+            {% if messages %}
+            <div style="max-width: 900px; margin: 0 auto var(--space-4) auto; display: grid; gap: var(--space-2);">
+                {% for message in messages %}
+                <div style="padding: var(--space-3); border-radius: var(--radius-sm); border: 1px solid {% if message.tags == 'error' %}#FCA5A5{% else %}#86EFAC{% endif %}; background: {% if message.tags == 'error' %}#FEF2F2{% else %}#F0FDF4{% endif %}; color: {% if message.tags == 'error' %}#991B1B{% else %}#166534{% endif %}; font-size: 0.9rem;">
+                    {{ message }}
+                </div>
+                {% endfor %}
+            </div>
+            {% endif %}
+
             <div style="display: flex; justify-content: center; align-items: center; min-height: 60vh;">
                 <div class="saas-card" style="width: 100%; max-width: 600px; text-align: center;">
                     <div class="saas-camera-card" style="height: 250px; background: #0F172A; display: flex; align-items: center; justify-content: center; position: relative;">
@@ -86,12 +96,21 @@
                         <form action="{% url 'start_teacher_camera' assigned_class.id %}" method="POST" style="margin-top: var(--space-5);">
                             {% csrf_token %}
                             <button type="submit" class="saas-btn saas-btn-primary" style="width: 100%; padding: var(--space-3); font-size: 1rem;">
-                                <i class="fas fa-play-circle" style="font-size: 1.2rem; margin-right: var(--space-2);"></i> Launch Live Recognition
+                                <i class="fas fa-play-circle" style="font-size: 1.2rem; margin-right: var(--space-2);"></i> Launch Live Recognition (Desktop)
                             </button>
                         </form>
 
+                        <div style="margin-top: var(--space-4); text-align: center;">
+                            <p style="font-size: 0.875rem; color: var(--text-tertiary); margin-bottom: var(--space-3);">
+                                <i class="fas fa-server"></i> Using a VPS/Headless server? Use web-based streaming instead.
+                            </p>
+                            <a href="{% url 'teacher_camera_stream' assigned_class.id %}" class="saas-btn saas-btn-secondary" style="width: 100%; padding: var(--space-3); font-size: 1rem; display: inline-block; text-decoration: none;">
+                                <i class="fas fa-globe"></i> Launch Web-Based Camera Stream
+                            </a>
+                        </div>
+
                         <p style="margin-top: var(--space-4); margin-bottom: 0; font-size: 0.875rem; color: var(--text-tertiary);">
-                            <i class="fas fa-info-circle"></i> Once the feed launches, press 'Q' on the video window to terminate the session.
+                            <i class="fas fa-info-circle"></i> Desktop version requires display/GUI. Web version works on VPS without display.
                         </p>
                     </div>
                 </div>

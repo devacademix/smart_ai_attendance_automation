@@ -73,7 +73,15 @@
                             <td>{{ assigned_class.course.name }}</td>
                             <td>{{ assigned_class.semester.name }}</td>
                             <td>{{ assigned_class.department.name }}</td>
-                            <td>{{ assigned_class.camera.location }} ({{ assigned_class.camera.name }})</td>
+                            <td>
+                                {% if assigned_class.cameras.all %}
+                                    {% for cam in assigned_class.cameras.all %}
+                                        {{ cam.location }} ({{ cam.name }}){% if not forloop.last %}, {% endif %}
+                                    {% endfor %}
+                                {% else %}
+                                    No camera assigned
+                                {% endif %}
+                            </td>
                             <td>
                                 <a href="{% url 'teacher_mark_attendance' assigned_class.id %}" class="btn btn-primary" style="padding: 5px 10px; background-color: #7380ec; color: white; border-radius: var(--border-radius-1); text-decoration: none; margin-right: 10px;">Mark Attendance</a>
                                 <a href="{% url 'teacher_view_attendance' assigned_class.id %}" class="btn btn-primary" style="padding: 5px 10px; background-color: #41f1b6; color: white; border-radius: var(--border-radius-1); text-decoration: none;">View Attendance</a>

@@ -13,6 +13,42 @@
         box-shadow: var(--shadow-sm);
         margin-top: var(--space-6);
     }
+
+    .performance-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+        gap: var(--space-5);
+        margin-top: var(--space-6);
+    }
+
+    .performance-card {
+        background: linear-gradient(135deg, #0F172A 0%, #1E293B 100%);
+        border-radius: var(--radius-lg);
+        padding: var(--space-5);
+        border: 1px solid #334155;
+        box-shadow: var(--shadow-md);
+        color: #F8FAFC;
+    }
+
+    .performance-value {
+        margin: 0;
+        font-size: 2rem;
+        font-weight: 700;
+        line-height: 1.1;
+    }
+
+    .performance-label {
+        margin: var(--space-2) 0 0 0;
+        font-size: 0.95rem;
+        font-weight: 600;
+        color: #CBD5E1;
+    }
+
+    .performance-note {
+        margin: var(--space-2) 0 0 0;
+        font-size: 0.8rem;
+        color: #94A3B8;
+    }
 </style>
 {% endblock %}
 
@@ -136,6 +172,36 @@
             </div>
         </div>
     </a>
+</div>
+
+<div class="saas-card" style="margin-top: var(--space-6);">
+    <div class="saas-card-header">
+        <h3 class="saas-card-title">AI Performance Targets</h3>
+    </div>
+    <div class="saas-card-body">
+        <div class="performance-grid">
+            <div class="performance-card">
+                <p class="performance-value">99.97%</p>
+                <p class="performance-label">Recognition Accuracy</p>
+                <p class="performance-note">Industry-leading biometric precision</p>
+            </div>
+            <div class="performance-card">
+                <p class="performance-value">&lt;150 ms</p>
+                <p class="performance-label">Authentication Speed</p>
+                <p class="performance-note">Real-time verification latency</p>
+            </div>
+            <div class="performance-card">
+                <p class="performance-value">50K+</p>
+                <p class="performance-label">Daily Authentications</p>
+                <p class="performance-note">Enterprise-grade throughput</p>
+            </div>
+            <div class="performance-card">
+                <p class="performance-value">256-bit AES</p>
+                <p class="performance-label">Encryption</p>
+                <p class="performance-note">Military-grade data protection</p>
+            </div>
+        </div>
+    </div>
 </div>
 
 <!-- Chart Section -->

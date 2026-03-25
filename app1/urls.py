@@ -106,6 +106,9 @@ urlpatterns = [
     path('teacher-dashboard/', views.teacher_dashboard, name='teacher_dashboard'),
     path('teacher/mark-attendance/<int:class_id>/', views.teacher_mark_attendance, name='teacher_mark_attendance'),
     path('teacher/start-camera/<int:class_id>/', views.start_teacher_camera, name='start_teacher_camera'),
+    path('teacher/camera-stream/<int:class_id>/', views.teacher_camera_stream_view, name='teacher_camera_stream'),
+    path('teacher/camera-stream/<int:class_id>/<int:camera_id>/', views.generate_camera_stream, name='camera_stream'),
+    path('teacher/live-attendance-stats/<int:class_id>/', views.get_live_attendance_stats, name='live_attendance_stats'),
 
     path('teacher/view-attendance/<int:class_id>/', views.teacher_view_attendance, name='teacher_view_attendance'),
 

@@ -40,9 +40,9 @@
                 </div>
                 
                 <div class="saas-form-group">
-                    <label class="saas-label" for="camera_source">Feed Source <span style="color: var(--danger-color);">*</span></label>
-                    <input type="text" class="saas-input" id="camera_source" name="camera_source" value="{{ config.camera_source|default:'' }}" placeholder="0 for default webcam or RTSP URL" required>
-                    <p style="font-size: 0.75rem; color: var(--text-tertiary); margin-top: 4px;">Use '0' for localhost webcam, or enter an RTSP stream link.</p>
+                    <label class="saas-label" for="camera_source">Feed Source (RTSP/RTMP/HTTP) <span style="color: var(--danger-color);">*</span></label>
+                    <input type="text" class="saas-input" id="camera_source" name="camera_source" value="{{ config.camera_source|default:'' }}" placeholder="Ex: rtsp://user:pass@192.168.1.8:554/stream" required>
+                    <p style="font-size: 0.75rem; color: var(--text-tertiary); margin-top: 4px;">Supports '0' for webcam or full RTSP/RTMP URLs. <br><b>Tip:</b> If your password contains '@', use '%40' instead.</p>
                 </div>
                 
                 <div class="saas-form-group">
@@ -52,8 +52,8 @@
                 
                 <div class="saas-form-group">
                     <label class="saas-label" for="threshold">Recognition Confidence Threshold <span style="color: var(--danger-color);">*</span></label>
-                    <input type="number" step="0.01" class="saas-input" id="threshold" name="threshold" value="{{ config.threshold|default:0.6 }}" placeholder="0.6" required>
-                    <p style="font-size: 0.75rem; color: var(--text-tertiary); margin-top: 4px;">Lower values are stricter. Recommended range: 0.5 - 0.7.</p>
+                    <input type="number" step="0.01" class="saas-input" id="threshold" name="threshold" value="{{ config.threshold|default:0.95 }}" placeholder="0.95" required>
+                    <p style="font-size: 0.75rem; color: var(--text-tertiary); margin-top: 4px;">Lower values are stricter. Recommended range: 0.85 - 1.10 for live camera feeds.</p>
                 </div>
             </div>
 
