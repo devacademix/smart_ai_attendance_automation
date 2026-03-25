@@ -309,10 +309,16 @@ def mark_attendance(request):
 #############################################################
 # Initialize MTCNN and InceptionResnetV1
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-FACE_MATCH_THRESHOLD = float(os.getenv("FACE_MATCH_THRESHOLD", "0.6"))
+FACE_MATCH_THRESHOLD = float(os.getenv("FACE_MATCH_THRESHOLD", "0.95"))
+FACE_MATCH_THRESHOLD_MIN = float(os.getenv("FACE_MATCH_THRESHOLD_MIN", "0.90"))
+FACE_MATCH_THRESHOLD_MAX = float(os.getenv("FACE_MATCH_THRESHOLD_MAX", "1.40"))
 FACE_DETECT_SCALE = float(os.getenv("FACE_DETECT_SCALE", "0.5"))
 if FACE_DETECT_SCALE <= 0 or FACE_DETECT_SCALE > 1:
     FACE_DETECT_SCALE = 0.5
+if FACE_MATCH_THRESHOLD_MIN < 0:
+    FACE_MATCH_THRESHOLD_MIN = 0.0
+if FACE_MATCH_THRESHOLD_MAX <= 0 or FACE_MATCH_THRESHOLD_MAX < FACE_MATCH_THRESHOLD_MIN:
+    FACE_MATCH_THRESHOLD_MAX = max(FACE_MATCH_THRESHOLD_MIN, 1.40)
 
 mtcnn = MTCNN(keep_all=True, device=DEVICE)
 resnet = InceptionResnetV1(pretrained='vggface2').eval().to(DEVICE)
@@ -327,6 +333,22 @@ def _safe_student_checkout_threshold(student, default_seconds):
     if student_settings and student_settings.check_out_time_threshold is not None:
         return student_settings.check_out_time_threshold
     return default_seconds
+
+
+def resolve_face_match_threshold(raw_threshold=None):
+    """
+    Resolve face distance threshold with sane bounds.
+    Values outside expected range are clamped to avoid overly strict/loose matching.
+    """
+    try:
+        threshold = float(raw_threshold)
+    except (TypeError, ValueError):
+        threshold = FACE_MATCH_THRESHOLD
+
+    if threshold <= 0:
+        threshold = FACE_MATCH_THRESHOLD
+
+    return min(max(threshold, FACE_MATCH_THRESHOLD_MIN), FACE_MATCH_THRESHOLD_MAX)
 
 
 def _face_embedding_key():
@@ -464,21 +486,38 @@ def encode_uploaded_images(student_ids=None, include_ids=False):
     return known_face_encodings, known_face_names
 
 
-def match_face_indices(known_encodings, test_encodings, threshold=FACE_MATCH_THRESHOLD):
+def _closest_face_distance(known_matrix, test_encoding):
+    distances = np.linalg.norm(known_matrix - np.asarray(test_encoding, dtype=np.float32), axis=1)
+    min_distance_idx = int(np.argmin(distances))
+    return min_distance_idx, float(distances[min_distance_idx])
+
+
+def match_face_indices_with_distances(known_encodings, test_encodings, threshold=FACE_MATCH_THRESHOLD):
     if not known_encodings:
-        return []
+        return [], []
 
     known_matrix = np.asarray(known_encodings, dtype=np.float32)
+    threshold = resolve_face_match_threshold(threshold)
     matched_indices = []
+    matched_distances = []
 
     for test_encoding in test_encodings:
-        distances = np.linalg.norm(known_matrix - np.asarray(test_encoding, dtype=np.float32), axis=1)
-        min_distance_idx = int(np.argmin(distances))
-        if float(distances[min_distance_idx]) < threshold:
+        min_distance_idx, min_distance = _closest_face_distance(known_matrix, test_encoding)
+        matched_distances.append(min_distance)
+        if min_distance <= threshold:
             matched_indices.append(min_distance_idx)
         else:
             matched_indices.append(None)
 
+    return matched_indices, matched_distances
+
+
+def match_face_indices(known_encodings, test_encodings, threshold=FACE_MATCH_THRESHOLD):
+    matched_indices, _ = match_face_indices_with_distances(
+        known_encodings,
+        test_encodings,
+        threshold=threshold
+    )
     return matched_indices
 
 
@@ -574,10 +613,11 @@ def capture_and_recognize(request):
         if not known_face_encodings:
             return JsonResponse({'message': 'No known faces available.'}, status=200)
 
-        matched_indices = match_face_indices(
+        resolved_threshold = resolve_face_match_threshold(FACE_MATCH_THRESHOLD)
+        matched_indices, match_distances = match_face_indices_with_distances(
             known_face_encodings,
             test_face_encodings,
-            threshold=FACE_MATCH_THRESHOLD
+            threshold=resolved_threshold
         )
         students_map = {
             student.id: student for student in Student.objects.filter(id__in=known_face_ids)
@@ -585,11 +625,15 @@ def capture_and_recognize(request):
 
         # Prepare and update attendance records
         attendance_response = []
-        for matched_idx in matched_indices:
+        for idx, matched_idx in enumerate(matched_indices):
+            match_distance = match_distances[idx] if idx < len(match_distances) else None
             if matched_idx is None:
+                unknown_status = 'Face not recognized'
+                if match_distance is not None:
+                    unknown_status = f'Face not recognized (distance {match_distance:.2f})'
                 attendance_response.append({
                     'name': 'Unknown',
-                    'status': 'Face not recognized',
+                    'status': unknown_status,
                     'check_in_time': None,
                     'check_out_time': None,
                     'image_url': '/static/notrecognize.png',
@@ -1341,7 +1385,7 @@ def capture_and_recognize_with_cam(request):
             if not cap.isOpened():
                 raise Exception(f"Unable to access camera {cam_config.name}.")
 
-            threshold = cam_config.threshold or FACE_MATCH_THRESHOLD
+            threshold = resolve_face_match_threshold(cam_config.threshold)
 
             # Initialize pygame mixer for sound playback
             pygame.mixer.init()
@@ -1378,14 +1422,15 @@ def capture_and_recognize_with_cam(request):
                             continue
 
                         test_face_encoding = encode_face_patch(face_patch)
-                        distances = np.linalg.norm(known_face_matrix - test_face_encoding, axis=1)
-                        min_distance_idx = int(np.argmin(distances))
-                        min_distance = float(distances[min_distance_idx])
+                        min_distance_idx, min_distance = _closest_face_distance(
+                            known_face_matrix,
+                            test_face_encoding
+                        )
 
                         x1, y1, x2, y2 = map(int, box)
                         cv2.rectangle(frame, (x1, y1), (x2, y2), (0, 255, 0), 2)
 
-                        label = "Unknown"
+                        label = f"Unknown (d={min_distance:.2f})"
                         label_color = (0, 0, 255)
 
                         if min_distance <= threshold:
@@ -1500,7 +1545,8 @@ def camera_config_create(request):
         # Retrieve form data from the request
         name = request.POST.get('name')
         camera_source = request.POST.get('camera_source')
-        threshold = request.POST.get('threshold')
+        threshold = resolve_face_match_threshold(request.POST.get('threshold'))
+        location = request.POST.get('location')
 
         try:
             # Save the data to the database using the CameraConfiguration model
@@ -1508,6 +1554,7 @@ def camera_config_create(request):
                 name=name,
                 camera_source=camera_source,
                 threshold=threshold,
+                location=location,
             )
             # Redirect to the list of camera configurations after successful creation
             return redirect('camera_config_list')
@@ -1544,8 +1591,8 @@ def camera_config_update(request, pk):
         # Update the configuration fields with data from the form
         config.name = request.POST.get('name')
         config.camera_source = request.POST.get('camera_source')
-        config.threshold = request.POST.get('threshold')
-        config.success_sound_path = request.POST.get('success_sound_path')
+        config.threshold = resolve_face_match_threshold(request.POST.get('threshold'))
+        config.location = request.POST.get('location')
 
         # Save the changes to the database
         config.save()  
@@ -2226,7 +2273,11 @@ def start_teacher_camera(request, class_id):
             if not cap.isOpened():
                 raise Exception(f"Unable to access camera {cam_config.name}.")
 
-            threshold = cam_config.threshold or FACE_MATCH_THRESHOLD
+            # Try to set higher resolution (may not work for all RTSP streams)
+            cap.set(cv2.CAP_PROP_FRAME_WIDTH, 1280)
+            cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 720)
+
+            threshold = resolve_face_match_threshold(cam_config.threshold)
             pygame.mixer.init()
             try:
                 success_sound = pygame.mixer.Sound('static/success.wav')
@@ -2266,9 +2317,10 @@ def start_teacher_camera(request, class_id):
                             continue
 
                         test_face_encoding = encode_face_patch(face)
-                        distances = np.linalg.norm(known_face_matrix - test_face_encoding, axis=1)
-                        min_distance_idx = int(np.argmin(distances))
-                        min_distance = float(distances[min_distance_idx])
+                        min_distance_idx, min_distance = _closest_face_distance(
+                            known_face_matrix,
+                            test_face_encoding
+                        )
 
                         text_y = int(box[3]) + 20
                         text_x = int(box[0])
@@ -2307,10 +2359,20 @@ def start_teacher_camera(request, class_id):
                             else:
                                 cv2.putText(frame, f"{name} (Not in Class)", (text_x, text_y), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 165, 255), 2, cv2.LINE_AA)
                         else:
-                            cv2.putText(frame, "Unknown", (text_x, text_y), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 0, 255), 2, cv2.LINE_AA)
+                            cv2.putText(
+                                frame,
+                                f"Unknown d={min_distance:.2f}",
+                                (text_x, text_y),
+                                cv2.FONT_HERSHEY_SIMPLEX,
+                                0.8,
+                                (0, 0, 255),
+                                2,
+                                cv2.LINE_AA
+                            )
 
                 if not window_created:
-                    cv2.namedWindow(window_name)
+                    cv2.namedWindow(window_name, cv2.WINDOW_NORMAL)
+                    cv2.resizeWindow(window_name, 1280, 720)
                     window_created = True
                 cv2.imshow(window_name, frame)
                 if cv2.waitKey(1) & 0xFF == ord('q'):

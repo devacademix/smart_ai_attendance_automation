@@ -1,134 +1,257 @@
 # -*- coding: utf-8 -*-
-import cv2
-import threading
 import time
-import numpy as np
-from django.shortcuts import get_object_or_404
-from django.http import StreamingHttpResponse
-from django.utils.timezone import now as timezone_now
 from datetime import timedelta
-from .models import Student, Attendance, Settings, Teacher, AssignedClass, CameraConfiguration
-from .views import detect_faces, extract_face_patch, encode_face_patch, encode_uploaded_images
 
-class CameraFrameGenerator:
-    """Generates MJPEG frames for a single camera with face recognition."""
-    
-    _models_loaded = False
-    known_face_encodings = []
-    known_face_names = []
-    known_face_ids = []
+import cv2
+import numpy as np
+from django.http import StreamingHttpResponse
+from django.shortcuts import get_object_or_404
+from django.utils.timezone import now as timezone_now
 
-    def __init__(self, cam_config, eligible_student_ids, students_in_class, threshold=0.75):
-        self.cam_config = cam_config
-        self.eligible_student_ids = eligible_student_ids
-        self.students_in_class = students_in_class
-        self.threshold = threshold
-        self.running = False
-        self.cap = None
-        self.frame_buffer = None
-        self.lock = threading.Lock()
-        self.capture_thread = None
-        
-        # Load models once
-        if not CameraFrameGenerator._models_loaded:
-            print(f"[INFO] Initializing face models for {cam_config.name}...")
-            encs, names, ids = encode_uploaded_images(eligible_student_ids, include_ids=True)
-            CameraFrameGenerator.known_face_encodings = encs
-            CameraFrameGenerator.known_face_names = names
-            CameraFrameGenerator.known_face_ids = ids
-            CameraFrameGenerator._models_loaded = True
+from .models import Attendance, AssignedClass, CameraConfiguration, Settings, Student, Teacher
+from .views import (
+    _closest_face_distance,
+    _safe_student_checkout_threshold,
+    detect_faces,
+    encode_face_patch,
+    encode_uploaded_images,
+    extract_face_patch,
+    resolve_face_match_threshold,
+)
 
-        self.students_map = {
-            student.id: student 
-            for student in self.students_in_class.filter(id__in=self.eligible_student_ids)
-        }
 
-    def _open_camera(self):
-        try:
-            source = str(self.cam_config.camera_source).strip()
-            if source.isdigit():
-                self.cap = cv2.VideoCapture(int(source))
-            else:
-                if not any(source.startswith(p) for p in ['http', 'rtsp', 'rtmp']):
-                    source = 'http://' + source
-                self.cap = cv2.VideoCapture(source, cv2.CAP_FFMPEG)
-                
-            if self.cap is None or not self.cap.isOpened():
-                print(f"[ERROR] Connection failed: {source}")
-                return False
-            
-            self.cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)
-            print(f"[SUCCESS] Connected to {source}")
-            return True
-        except Exception as e:
-            print(f"[ERROR] Camera open error: {e}")
-            return False
+FRAME_WIDTH = 1280
+FRAME_HEIGHT = 720
 
-    def _capture_loop(self):
-        self.running = True
-        frame_count = 0
-        while self.running:
-            if self.cap is None or not self.cap.isOpened():
-                if not self._open_camera():
-                    time.sleep(2)
-                    continue
 
-            ret, frame = self.cap.read()
-            if not ret:
-                self.cap.release()
-                self.cap = None
-                continue
+def _open_camera_source(camera_source):
+    source = str(camera_source).strip()
+    if source.isdigit():
+        return cv2.VideoCapture(int(source))
 
-            frame_count += 1
-            # Skip frames to keep up with real-time on VPS
-            if frame_count % 2 == 0:
-                processed_frame = self._process_frame(frame)
-                with self.lock:
-                    self.frame_buffer = processed_frame
+    if not any(source.startswith(prefix) for prefix in ("http://", "https://", "rtsp://", "rtmp://")):
+        source = f"http://{source}"
 
-    def _process_frame(self, frame):
-        # Resize for faster processing
-        small_frame = cv2.resize(frame, (640, 360))
-        
-        # Draw placeholder or recognition logic here
-        # For now, just return the frame as JPEG
-        _, buffer = cv2.imencode('.jpg', small_frame)
-        return buffer.tobytes()
+    return cv2.VideoCapture(source, cv2.CAP_FFMPEG)
 
-    def start(self):
-        if not self.capture_thread or not self.capture_thread.is_alive():
-            self.capture_thread = threading.Thread(target=self._capture_loop, daemon=True)
-            self.capture_thread.start()
 
-    def stop(self):
-        self.running = False
-        if self.cap:
-            self.cap.release()
+def _encode_mjpeg_frame(frame):
+    ok, buffer = cv2.imencode(".jpg", frame)
+    if not ok:
+        return None
+    return (
+        b"--frame\r\n"
+        b"Content-Type: image/jpeg\r\n\r\n" + buffer.tobytes() + b"\r\n"
+    )
 
-    def get_frame(self):
-        with self.lock:
-            return self.frame_buffer
 
-def teacher_camera_stream_view(request, class_id):
-    assigned_class = get_object_or_404(AssignedClass, id=class_id)
-    cam_configs = CameraConfiguration.objects.all() # Or filtered
-    
-    # Simple single camera logic for now to test connection
-    if not cam_configs.exists():
-        return StreamingHttpResponse("No cameras configured", status=400)
-    
-    gen = CameraFrameGenerator(cam_configs[0], [], assigned_class.students.all())
-    gen.start()
+def _error_frame(message):
+    frame = np.zeros((FRAME_HEIGHT, FRAME_WIDTH, 3), dtype=np.uint8)
+    cv2.putText(
+        frame,
+        "Camera Stream Error",
+        (40, 90),
+        cv2.FONT_HERSHEY_SIMPLEX,
+        1.1,
+        (0, 0, 255),
+        3,
+        cv2.LINE_AA,
+    )
+    cv2.putText(
+        frame,
+        message,
+        (40, 160),
+        cv2.FONT_HERSHEY_SIMPLEX,
+        0.8,
+        (255, 255, 255),
+        2,
+        cv2.LINE_AA,
+    )
+    return frame
+
+
+def generate_mjpeg_stream(request, class_id, camera_id):
+    """
+    Browser-safe MJPEG stream with live face recognition and attendance marking.
+    """
+    teacher = get_object_or_404(Teacher, user=request.user)
+    assigned_class = get_object_or_404(AssignedClass, id=class_id, teacher=teacher)
+    cam_config = get_object_or_404(
+        CameraConfiguration,
+        id=camera_id,
+        assigned_classes=assigned_class,
+    )
+
+    students_in_class = Student.objects.filter(
+        courses=assigned_class.course,
+        department=assigned_class.department,
+        semester=assigned_class.semester,
+    ).distinct()
+    eligible_student_ids = list(
+        students_in_class.filter(authorized=True, face_embedding__isnull=False)
+        .values_list("id", flat=True)
+        .distinct()
+    )
+
+    if not eligible_student_ids:
+        def no_profiles_stream():
+            frame = _error_frame("No authorized student face profiles found for this class.")
+            while True:
+                payload = _encode_mjpeg_frame(frame)
+                if payload:
+                    yield payload
+                time.sleep(0.5)
+
+        return StreamingHttpResponse(
+            no_profiles_stream(),
+            content_type="multipart/x-mixed-replace; boundary=frame",
+        )
+
+    known_face_encodings, known_face_names, known_face_ids = encode_uploaded_images(
+        eligible_student_ids,
+        include_ids=True,
+    )
+
+    if not known_face_encodings:
+        def no_embeddings_stream():
+            frame = _error_frame("Face embeddings are missing or unreadable for this class.")
+            while True:
+                payload = _encode_mjpeg_frame(frame)
+                if payload:
+                    yield payload
+                time.sleep(0.5)
+
+        return StreamingHttpResponse(
+            no_embeddings_stream(),
+            content_type="multipart/x-mixed-replace; boundary=frame",
+        )
+
+    known_face_matrix = np.asarray(known_face_encodings, dtype=np.float32)
+    students_map = {
+        student.id: student for student in students_in_class.filter(id__in=known_face_ids)
+    }
+
+    global_settings = Settings.objects.filter(student__isnull=True).first() or Settings.objects.first()
+    global_check_out_threshold_seconds = global_settings.check_out_time_threshold if global_settings else 28800
+    threshold = resolve_face_match_threshold(cam_config.threshold)
 
     def stream():
+        cap = None
         try:
+            cap = _open_camera_source(cam_config.camera_source)
             while True:
-                frame = gen.get_frame()
-                if frame:
-                    yield (b'--frame\r\n'
-                           b'Content-Type: image/jpeg\r\n\r\n' + frame + b'\r\n')
-                time.sleep(0.05)
-        finally:
-            gen.stop()
+                if cap is None or not cap.isOpened():
+                    if cap is not None:
+                        cap.release()
+                    cap = _open_camera_source(cam_config.camera_source)
+                    if cap is None or not cap.isOpened():
+                        frame = _error_frame("Unable to connect camera. Retrying...")
+                        payload = _encode_mjpeg_frame(frame)
+                        if payload:
+                            yield payload
+                        time.sleep(1.0)
+                        continue
 
-    return StreamingHttpResponse(stream(), content_type='multipart/x-mixed-replace; boundary=frame')
+                ret, frame = cap.read()
+                if not ret or frame is None:
+                    frame = _error_frame("No frame received from camera. Reconnecting...")
+                    payload = _encode_mjpeg_frame(frame)
+                    if payload:
+                        yield payload
+                    cap.release()
+                    cap = None
+                    time.sleep(0.5)
+                    continue
+
+                frame = cv2.resize(frame, (FRAME_WIDTH, FRAME_HEIGHT))
+                frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+                boxes = detect_faces(frame_rgb)
+
+                if boxes is not None:
+                    for box in boxes:
+                        x1, y1, x2, y2 = map(int, box)
+                        cv2.rectangle(frame, (x1, y1), (x2, y2), (255, 0, 0), 2)
+
+                        face_patch = extract_face_patch(frame_rgb, box)
+                        if face_patch is None:
+                            continue
+
+                        test_face_encoding = encode_face_patch(face_patch)
+                        min_distance_idx, min_distance = _closest_face_distance(
+                            known_face_matrix,
+                            test_face_encoding,
+                        )
+
+                        label = f"Unknown d={min_distance:.2f}"
+                        label_color = (0, 0, 255)
+
+                        if min_distance <= threshold:
+                            student_id = known_face_ids[min_distance_idx]
+                            student = students_map.get(student_id)
+                            name = known_face_names[min_distance_idx]
+
+                            if student:
+                                check_out_threshold_seconds = _safe_student_checkout_threshold(
+                                    student,
+                                    global_check_out_threshold_seconds,
+                                )
+                                attendance, _ = Attendance.objects.get_or_create(
+                                    student=student,
+                                    date=timezone_now().date(),
+                                    course=assigned_class.course,
+                                )
+
+                                if attendance.check_in_time is None:
+                                    attendance.mark_checked_in()
+                                    label = f"{name}, checked in"
+                                    label_color = (0, 255, 0)
+                                elif attendance.check_out_time is None:
+                                    if timezone_now() >= attendance.check_in_time + timedelta(
+                                        seconds=check_out_threshold_seconds
+                                    ):
+                                        attendance.mark_checked_out()
+                                        label = f"{name}, checked out"
+                                        label_color = (0, 255, 0)
+                                    else:
+                                        label = f"{name}, already checked in"
+                                        label_color = (0, 215, 255)
+                                else:
+                                    label = f"{name}, already checked out"
+                                    label_color = (0, 215, 255)
+
+                        cv2.putText(
+                            frame,
+                            label,
+                            (x1, max(y1 - 10, 24)),
+                            cv2.FONT_HERSHEY_SIMPLEX,
+                            0.7,
+                            label_color,
+                            2,
+                            cv2.LINE_AA,
+                        )
+
+                cv2.putText(
+                    frame,
+                    f"{cam_config.name} | threshold={threshold:.2f}",
+                    (16, 28),
+                    cv2.FONT_HERSHEY_SIMPLEX,
+                    0.7,
+                    (0, 255, 255),
+                    2,
+                    cv2.LINE_AA,
+                )
+
+                payload = _encode_mjpeg_frame(frame)
+                if payload:
+                    yield payload
+
+                time.sleep(0.03)
+
+        finally:
+            if cap is not None:
+                cap.release()
+
+    return StreamingHttpResponse(
+        stream(),
+        content_type="multipart/x-mixed-replace; boundary=frame",
+    )
